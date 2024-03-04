@@ -86,15 +86,15 @@ class TensorflowModule(MLModel, Reconfigurable):
             raise Exception("there is fuckery about... too many inputs in map") #for now lol
 
 
-        toInput = []
+        finalInput = []
         for i in range(len(inputVars)):
             input = input_tensors[inputVars[i]]    
             input = tf.convert_to_tensor(input, dtype=self.inputInfo[i][2])
             input = tf.reshape(input, self.inputInfo[i][1])
-            toInput.append(input)
+            finalInput.append(input)
 
 
-        res = self.model(input)
+        res = self.model(finalInput)
 
         return res
 
