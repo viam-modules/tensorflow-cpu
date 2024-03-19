@@ -11,6 +11,8 @@ from viam.utils import ValueTypes
 from viam.logging import getLogger
 
 import tensorflow as tf
+import numpy as np
+import os
 
 
 LOGGER = getLogger(__name__)
@@ -33,35 +35,47 @@ class TensorflowModule(MLModel, Reconfigurable):
                       
     @classmethod
     def validate_config(cls, config: ServiceConfig) -> Sequence[str]:
-        model_dir = config.attributes.fields["model_dir"].string_value
-        if model_dir == "":
+        model_path = config.attributes.fields["model_path"].string_value
+        if model_path == "":
             raise Exception(
                 "please include the location of the Tensorflow SavedModel directory")
+        
+        isValid = False
+        for file in os.listdir(model_path):
+            if ".pb" in file:
+                isValid = True
+        if not isValid:
+            raise Exception("please include a SavedModel directory with a .pb file")
+
         return []
 
     def reconfigure(self,
             config: ServiceConfig,
             dependencies: Mapping[ResourceName, ResourceBase]):
         
-        self.model_dir = config.attributes.fields["model_dir"].string_value
-        # TODO: Validate that this is a valid model directory
-        # Valid = it is a directory with a saved_model.pb file in it (?)
+        self.model_path = config.attributes.fields["model_path"].string_value
+        self.label_path = config.attributes.fields["label_path"].string_value
 
         # This is where we're gonna do the actual loading of the model
-        self.model = tf.saved_model.load(self.model_dir)
+        self.model = tf.saved_model.load(self.model_path)
 
         self.inputInfo = []
         self.outputInfo = []
 
-        # Fill in the inputInfo as a list of tuples, each being a tensor with
-        # (name, shape, underlying type, input index)
+        # Save the inputInfo and outputInfo as a list of tuples, 
+        # each being a tensor with (name, shape, underlying type)
         f = self.model.signatures['serving_default']
         if len(f._arg_keywords) <= len(f.inputs):  # should always be true tbh
             for i in range(len(f._arg_keywords)):
                 ff = f.inputs[i]
                 if ff.dtype != "resource": # probably unneccessary to check now
-                    info = (f._arg_keywords[i], self.shapeToList(ff.get_shape()),ff.dtype,i) 
+                    info = (f._arg_keywords[i], prepShape(ff.get_shape()) ,ff.dtype) 
                     self.inputInfo.append(info)
+
+        for out in f.outputs:
+            info = (out.name, prepShape(out.get_shape()), out.dtype)
+            self.outputInfo.append(info)
+
                     
         
     async def infer(self, input_tensors: Dict[str, NDArray], *, timeout: Optional[float]) -> Dict[str, NDArray]:
@@ -73,30 +87,27 @@ class TensorflowModule(MLModel, Reconfigurable):
         Returns:
             Dict[str, NDArray]: A dictionary of output flat tensors as specified in the metadata
         """
-        res = dict()
-
-        #TODO: Make something to guess at the order the tensors are meant to be in (if more than 1)??
-        # ["name0", "name1", "name3", "name2"] means the tensor "name3" in the map should be in spot 2 when fed into model (0-indexed)
-        # Currently assuming the order they came in is the order they should go in 
-        # ^^ Kinda valid since python dicts are ORDERED (since 3.7... and who ain't got at least 3.7?)
-        
     
-        inputVars = list(input_tensors.keys())[0]
+        inputVars = list(input_tensors.keys())
         if len(inputVars) > len(self.inputInfo):
-            raise Exception("there is fuckery about... too many inputs in map") #for now lol
+            raise Exception("there are more input tensors (" + str(len(inputVars)) + 
+                            ") than the model expected (" +str(len(inputVars)) + ")")
 
-
-        finalInput = []
+        inputList = []
         for i in range(len(inputVars)):
-            input = input_tensors[inputVars[i]]    
-            input = tf.convert_to_tensor(input, dtype=self.inputInfo[i][2])
-            input = tf.reshape(input, self.inputInfo[i][1])
-            finalInput.append(input)
+            input = input_tensors[inputVars[i]]    # grab tensor 
+            input = tf.convert_to_tensor(input, dtype=self.inputInfo[i][2]) # make into a tf tensor of right type
+            inputList.append(input)  # put in list
 
+        
+        k = np.squeeze(np.asarray(inputList), axis=0)
+        res = self.model(k)
 
-        res = self.model(finalInput)
+        LOGGER.info("Okay, we have our result and it has this length:")
+        LOGGER.info(len(res))
 
-        return res
+        return {"output": np.asarray(res)}
+        
 
     async def metadata(self, *, timeout: Optional[float]) -> Metadata:
         """Get the metadata (such as name, type, expected tensor/array shape, inputs, and outputs) associated with the ML model.
@@ -108,28 +119,38 @@ class TensorflowModule(MLModel, Reconfigurable):
         inputInfo = []
         outputInfo = []
         for input in self.inputInfo:
-            info = TensorInfo(name=input[0], shape=input[1] , data_type=input[2])
+            info = TensorInfo(name=input[0], shape=input[1] , data_type=prepType(input[2]))
             inputInfo.append(info)
 
         for output in self.outputInfo:
-            info = TensorInfo(name=output[0], shape=output[1] , data_type=output[2])
+            info = TensorInfo(name=output[0], shape=output[1] , data_type=prepType(output[2]))
             outputInfo.append(info)
 
-        return Metadata(name = "yada yada",
-                        type = "blah blah",
+        return Metadata(name = "tensorflow_model",
                         input_info=inputInfo, 
                         output_info=outputInfo)
     
+
     async def do_command(self,
                         command: Mapping[str, ValueTypes],
                         *,
                         timeout: Optional[float] = None,
                         **kwargs):
-        raise NotImplementedError
-    
-    def shapeToList(tensorShape) :
-        out = tensorShape.as_list()
-        for i in range(len(out)):
-            if out[i]==None:
-                out[i] = -1
-        return out 
+        return NotImplementedError
+
+# Want to return a list of ints (-1 for None)  
+def prepShape(tensorShape):
+    out = []
+    for t in list(tensorShape):
+        if t==None:
+            out.append(-1)
+        else:
+            out.append(t)
+    return out
+
+# Want to return a simple string ("float32", "int64", etc.)
+def prepType(tensorType):
+    # The dtype uses an escaped apostrophe around the actual type name so use that
+    s = str(tensorType)
+    inds = [i for i, letter in enumerate(s) if letter == "\'"]
+    return s[inds[0]+1:inds[1]]
