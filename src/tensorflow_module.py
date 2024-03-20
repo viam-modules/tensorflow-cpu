@@ -13,6 +13,7 @@ from viam.logging import getLogger
 import tensorflow as tf
 import numpy as np
 import os
+import google.protobuf.struct_pb2 as pb
 
 
 LOGGER = getLogger(__name__)
@@ -23,7 +24,7 @@ class TensorflowModule(MLModel, Reconfigurable):
      
     def __init__(self, name: str):
         super().__init__(name=name)
-        
+
     @classmethod
     def new_service(cls,
                  config: ServiceConfig,
@@ -40,14 +41,20 @@ class TensorflowModule(MLModel, Reconfigurable):
             raise Exception(
                 "please include the location of the Tensorflow SavedModel directory")
         
+        # Check that model_path points to a dir with a pb file in it
+        # and that the model file isn't too big (>500 MB)
         isValid = False
         for file in os.listdir(model_path):
             if ".pb" in file:
                 isValid = True
+                sizeMB = os.stat(model_path + file).st_size / (1024*1024)
+                if sizeMB > 500:
+                    LOGGER.warn("Model file extremely large (" + str(sizeMB)  + "MB)")
         if not isValid:
             raise Exception("please include a SavedModel directory with a .pb file")
 
         return []
+
 
     def reconfigure(self,
             config: ServiceConfig,
@@ -56,14 +63,13 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
 
-        # This is where we're gonna do the actual loading of the model
+        # This is where we do the actual loading of the model
         self.model = tf.saved_model.load(self.model_path)
-
-        self.inputInfo = []
-        self.outputInfo = []
 
         # Save the inputInfo and outputInfo as a list of tuples, 
         # each being a tensor with (name, shape, underlying type)
+        self.inputInfo = []
+        self.outputInfo = []
         f = self.model.signatures['serving_default']
         if len(f._arg_keywords) <= len(f.inputs):  # should always be true tbh
             for i in range(len(f._arg_keywords)):
@@ -76,8 +82,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             info = (out.name, prepShape(out.get_shape()), out.dtype)
             self.outputInfo.append(info)
 
-                    
-        
+
     async def infer(self, input_tensors: Dict[str, NDArray], *, timeout: Optional[float]) -> Dict[str, NDArray]:
         """Take an already ordered input tensor as an array, make an inference on the model, and return an output tensor map.
 
@@ -88,26 +93,40 @@ class TensorflowModule(MLModel, Reconfigurable):
             Dict[str, NDArray]: A dictionary of output flat tensors as specified in the metadata
         """
     
+        # Check input against expected length
         inputVars = list(input_tensors.keys())
         if len(inputVars) > len(self.inputInfo):
             raise Exception("there are more input tensors (" + str(len(inputVars)) + 
-                            ") than the model expected (" +str(len(inputVars)) + ")")
+                           ") than the model expected (" +str(len(inputVars)) + ")")
 
+        # Prepare input(s) for inference
         inputList = []
         for i in range(len(inputVars)):
             input = input_tensors[inputVars[i]]    # grab tensor 
             input = tf.convert_to_tensor(input, dtype=self.inputInfo[i][2]) # make into a tf tensor of right type
             inputList.append(input)  # put in list
 
+        if len(inputVars)==1: 
+            data = np.squeeze(np.asarray(inputList), axis=0)
+        else:
+            data = np.asarray(inputList)
         
-        k = np.squeeze(np.asarray(inputList), axis=0)
-        res = self.model(k)
+        # Do the infer. res might have >1 tensor in it 
+        res = self.model(data)  
 
-        LOGGER.info("Okay, we have our result and it has this length:")
-        LOGGER.info(len(res))
-
-        return {"output": np.asarray(res)}
+        # Check output against expected length
+        if len(self.outputInfo) < len(res):
+            raise Exception("The model lied to us and has more outputs than it said it would")
+            # Honestlyyyy I could finesse this but w/ "unnamed" tensors (output0,..)
         
+        # Prep outputs for return
+        out = {}
+        for i in range(len(self.outputInfo)):
+            name = self.outputInfo[i][0]
+            out[name] = np.asarray(res[i])
+
+        return out
+
 
     async def metadata(self, *, timeout: Optional[float]) -> Metadata:
         """Get the metadata (such as name, type, expected tensor/array shape, inputs, and outputs) associated with the ML model.
@@ -116,6 +135,10 @@ class TensorflowModule(MLModel, Reconfigurable):
             Metadata: The metadata
         """
 
+        extra = pb.Struct()  # they want a Struct for extra, not a dict :(
+        extra["labels"] = self.label_path
+
+        # Fill out input and output info 
         inputInfo = []
         outputInfo = []
         for input in self.inputInfo:
@@ -123,7 +146,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             inputInfo.append(info)
 
         for output in self.outputInfo:
-            info = TensorInfo(name=output[0], shape=output[1] , data_type=prepType(output[2]))
+            info = TensorInfo(name=output[0], shape=output[1] , data_type=prepType(output[2]), extra=extra)
             outputInfo.append(info)
 
         return Metadata(name = "tensorflow_model",
@@ -137,6 +160,7 @@ class TensorflowModule(MLModel, Reconfigurable):
                         timeout: Optional[float] = None,
                         **kwargs):
         return NotImplementedError
+
 
 # Want to return a list of ints (-1 for None)  
 def prepShape(tensorShape):
