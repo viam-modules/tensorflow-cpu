@@ -1,5 +1,3 @@
-# tensorflow
-
 # tensorflow_cpu
 
 Viam provides a `tensorflow_cpu` model of the [ML model service](https://docs.viam.com/ml/deploy/) that allows CPU-based inference on a Tensorflow model in the SavedModel format.
