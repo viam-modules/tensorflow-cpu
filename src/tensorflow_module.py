@@ -97,7 +97,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         inputVars = list(input_tensors.keys())
         if len(inputVars) > len(self.inputInfo):
             raise Exception("there are more input tensors (" + str(len(inputVars)) + 
-                           ") than the model expected (" +str(len(inputVars)) + ")")
+                           ") than the model expected (" +str(len(self.inputInfo)) + ")")
 
         # Prepare input(s) for inference
         inputList = []
@@ -116,8 +116,8 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         # Check output against expected length
         if len(self.outputInfo) < len(res):
-            raise Exception("The model lied to us and has more outputs than it said it would")
-            # Honestlyyyy I could finesse this but w/ "unnamed" tensors (output0,..)
+            raise Exception("there are more output tensors (" + str(len(res)) + 
+                           ") than the model expected (" +str(len(self.outputInfo)) + ")")
         
         # Prep outputs for return
         out = {}
@@ -135,7 +135,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             Metadata: The metadata
         """
 
-        extra = pb.Struct()  # they want a Struct for extra, not a dict :(
+        extra = pb.Struct()  
         extra["labels"] = self.label_path
 
         # Fill out input and output info 
