@@ -38,8 +38,7 @@ class TensorflowModule(MLModel, Reconfigurable):
     def validate_config(cls, config: ServiceConfig) -> Sequence[str]:
         model_path = config.attributes.fields["model_path"].string_value
         if model_path == "":
-            raise Exception(
-                "please include the location of the Tensorflow SavedModel directory")
+            raise Exception("model_path must be the location of the Tensorflow SavedModel directory")
         
         # Check that model_path points to a dir with a pb file in it
         # and that the model file isn't too big (>500 MB)
@@ -49,9 +48,9 @@ class TensorflowModule(MLModel, Reconfigurable):
                 isValid = True
                 sizeMB = os.stat(model_path + file).st_size / (1024*1024)
                 if sizeMB > 500:
-                    LOGGER.warn("Model file extremely large (" + str(sizeMB)  + "MB)")
+                    LOGGER.warn("model file may be large for certain hardware (" + str(sizeMB)  + "MB)")
         if not isValid:
-            raise Exception("please include a SavedModel directory with a .pb file")
+            raise Exception("model_path must be the location of a SavedModel directory with a .pb file")
 
         return []
 
@@ -71,6 +70,9 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.inputInfo = []
         self.outputInfo = []
         f = self.model.signatures['serving_default']
+
+        # f.inputs may include "empty" inputs as resources, but _arg_keywords only contains input tensor names
+        
         if len(f._arg_keywords) <= len(f.inputs):  # should always be true tbh
             for i in range(len(f._arg_keywords)):
                 ff = f.inputs[i]
