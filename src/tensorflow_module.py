@@ -32,7 +32,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         service = cls(config.name)
         service.reconfigure(config, dependencies)
         return service
-    
                       
     @classmethod
     def validate_config(cls, config: ServiceConfig) -> Sequence[str]:
@@ -54,7 +53,6 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         return []
 
-
     def reconfigure(self,
             config: ServiceConfig,
             dependencies: Mapping[ResourceName, ResourceBase]):
@@ -72,7 +70,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         f = self.model.signatures['serving_default']
 
         # f.inputs may include "empty" inputs as resources, but _arg_keywords only contains input tensor names
-        
         if len(f._arg_keywords) <= len(f.inputs):  # should always be true tbh
             for i in range(len(f._arg_keywords)):
                 ff = f.inputs[i]
