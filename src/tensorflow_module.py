@@ -20,7 +20,7 @@ LOGGER = getLogger(__name__)
 
 
 class TensorflowModule(MLModel, Reconfigurable):
-    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "mlmodel"), "tensorflow_cpu")
+    MODEL: ClassVar[Model] = Model(ModelFamily("viam", "mlmodel"), "tensorflow-cpu")
      
     def __init__(self, name: str):
         super().__init__(name=name)

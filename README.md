@@ -1,6 +1,6 @@
-# tensorflow_cpu
+# tensorflow-cpu
 
-Viam provides a `tensorflow_cpu` model of the [ML model service](https://docs.viam.com/ml/deploy/) that allows CPU-based inference on a Tensorflow model in the SavedModel format.
+Viam provides a `tensorflow-cpu` model of the [ML model service](https://docs.viam.com/ml/deploy/) that allows CPU-based inference on a Tensorflow model in the SavedModel format.
 
 Configure this ML model service as a [modular resource](https://docs.viam.com/modular-resources/) on your robot to take advantage of Tensorflow on the Viam platform--including previously existing or even user-trained models.
 
@@ -14,7 +14,7 @@ The first step is to prepare a valid Tensorflow model.  A valid Tensorflow model
 
 ## Configuration
 
-Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/). Click on the **Services** subtab and click **Create service**. Select the `mlmodel` type, then select the `tensorflow_cpu` model. Enter a name for your service and click **Create**.
+Navigate to the **Config** tab of your robot’s page in [the Viam app](https://app.viam.com/). Click on the **Services** subtab and click **Create service**. Select the `mlmodel` type, then select the `tensorflow-cpu` model. Enter a name for your service and click **Create**.
 
 ### Example Configuration
 
@@ -23,14 +23,14 @@ Navigate to the **Config** tab of your robot’s page in [the Viam app](https://
   "modules": [
     {
       "type": "registry",
-      "name": "viam_tensorflow_cpu",
-      "module_id": "viam:tensorflow_cpu",
+      "name": "viam_tensorflow-cpu",
+      "module_id": "viam:tensorflow-cpu",
       "version": "latest"
     }
   ],
   "services": [
     {
-      "model": "viam:mlmodel:tensorflow_cpu",
+      "model": "viam:mlmodel:tensorflow-cpu",
       "attributes": {
         "package_reference": null,
         "model_path": "/home/kj/Resnet50/",
@@ -49,7 +49,7 @@ Navigate to the **Config** tab of your robot’s page in [the Viam app](https://
 
 ### Attributes
 
-The following attributes are available for `viam:mlmodel:tensorflow_cpu` services:
+The following attributes are available for `viam:mlmodel:tensorflow-cpu` services:
 
 | Name | Type | Inclusion | Description |
 | ---- | ---- | --------- | ----------- |
