@@ -1,10 +1,10 @@
 import asyncio
 
-
 from viam.module.module import Module
 from viam.resource.registry import Registry, ResourceCreatorRegistration
 from viam.services.mlmodel import MLModel
 from .tensorflow_module import TensorflowModule
+
 
 
 async def main():
@@ -13,6 +13,7 @@ async def main():
     resource models. Resource creators must be registered to the resource
     registry before the module adds the resource model.
     """
+
     Registry.register_resource_creator(
         MLModel.SUBTYPE,
         TensorflowModule.MODEL,
