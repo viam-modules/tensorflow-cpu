@@ -5,7 +5,6 @@ cd `dirname $0`
 VENV_NAME="venv"
 PYTHON="$VENV_NAME/bin/python"
 
-
 python3 -m venv $VENV_NAME
 $PYTHON -m pip install --upgrade pip
 $PYTHON -m pip install --prefer-binary -r requirements.txt -U # remove -U if viam-sdk should not be upgraded whenever possible

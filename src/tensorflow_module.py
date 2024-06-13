@@ -10,9 +10,9 @@ from viam.resource.base import ResourceBase
 from viam.utils import ValueTypes
 from viam.logging import getLogger
 
+import os
 import tensorflow as tf
 import numpy as np
-import os
 import google.protobuf.struct_pb2 as pb
 
 
@@ -38,7 +38,11 @@ class TensorflowModule(MLModel, Reconfigurable):
         model_path = config.attributes.fields["model_path"].string_value
         if model_path == "":
             raise Exception("model_path must be the location of the Tensorflow SavedModel directory")
-        
+
+        # Add trailing / if not there
+        if model_path[-1] != "/":
+            model_path = model_path+"/"
+
         # Check that model_path points to a dir with a pb file in it
         # and that the model file isn't too big (>500 MB)
         isValid = False
@@ -67,6 +71,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         # each being a tensor with (name, shape, underlying type)
         self.inputInfo = []
         self.outputInfo = []
+
         f = self.model.signatures['serving_default']
 
         # f.inputs may include "empty" inputs as resources, but _arg_keywords only contains input tensor names
@@ -120,9 +125,12 @@ class TensorflowModule(MLModel, Reconfigurable):
         
         # Prep outputs for return
         out = {}
-        for i in range(len(self.outputInfo)):
-            name = self.outputInfo[i][0]
-            out[name] = np.asarray(res[i])
+
+        for named_tensor in res:
+            out[named_tensor] = np.asarray(res[named_tensor])
+
+        #TODO: need to update the metadata with the cool new names but how to know which is which?
+
 
         return out
 
