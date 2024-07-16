@@ -6,7 +6,6 @@ from viam.services.mlmodel import MLModel
 from src.tensorflow_module import TensorflowModule
 
 
-
 async def main():
     """
     This function creates and starts a new module, after adding all desired
@@ -17,7 +16,10 @@ async def main():
     Registry.register_resource_creator(
         MLModel.SUBTYPE,
         TensorflowModule.MODEL,
-        ResourceCreatorRegistration(TensorflowModule.new_service, TensorflowModule.validate_config))
+        ResourceCreatorRegistration(
+            TensorflowModule.new_service, TensorflowModule.validate_config
+        ),
+    )
     module = Module.from_args()
 
     module.add_model_from_registry(MLModel.SUBTYPE, TensorflowModule.MODEL)
