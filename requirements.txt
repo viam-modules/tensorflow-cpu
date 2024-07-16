@@ -2,6 +2,9 @@ viam-sdk
 h5py
 tensorflow==2.16.1
 tf-keras-nightly
+pyinstaller
+pylint
+pytest
 tensorflow_probability == 0.24.0
 
 

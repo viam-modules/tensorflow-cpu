@@ -87,7 +87,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             self.outputInfo.append(info)
 
 
-    async def infer(self, input_tensors: Dict[str, NDArray], *, timeout: Optional[float]) -> Dict[str, NDArray]:
+    async def infer(self, input_tensors: Dict[str, NDArray], *, timeout: Optional[float] = None) -> Dict[str, NDArray]:
         """Take an already ordered input tensor as an array, make an inference on the model, and return an output tensor map.
 
         Args:
@@ -125,17 +125,20 @@ class TensorflowModule(MLModel, Reconfigurable):
         
         # Prep outputs for return
         out = {}
+        if len(res) > 1:
+            for named_tensor in res:
+                out[named_tensor] = np.asarray(res[named_tensor])
+        else:
+            name = self.outputInfo[0][0]
+            out[name] = np.asarray(res[0])
 
-        for named_tensor in res:
-            out[named_tensor] = np.asarray(res[named_tensor])
 
         #TODO: need to update the metadata with the cool new names but how to know which is which?
-
 
         return out
 
 
-    async def metadata(self, *, timeout: Optional[float]) -> Metadata:
+    async def metadata(self, *, timeout: Optional[float] = None) -> Metadata:
         """Get the metadata (such as name, type, expected tensor/array shape, inputs, and outputs) associated with the ML model.
 
         Returns:
