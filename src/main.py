@@ -3,7 +3,8 @@ import asyncio
 from viam.module.module import Module
 from viam.resource.registry import Registry, ResourceCreatorRegistration
 from viam.services.mlmodel import MLModel
-from src.tensorflow_module import TensorflowModule
+from .tensorflow_module import TensorflowModule
+
 
 
 async def main():
@@ -16,10 +17,7 @@ async def main():
     Registry.register_resource_creator(
         MLModel.SUBTYPE,
         TensorflowModule.MODEL,
-        ResourceCreatorRegistration(
-            TensorflowModule.new_service, TensorflowModule.validate_config
-        ),
-    )
+        ResourceCreatorRegistration(TensorflowModule.new_service, TensorflowModule.validate_config))
     module = Module.from_args()
 
     module.add_model_from_registry(MLModel.SUBTYPE, TensorflowModule.MODEL)
