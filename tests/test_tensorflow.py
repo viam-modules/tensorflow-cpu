@@ -63,12 +63,3 @@ class TestTensorflowCPU:
         assert hasattr(md, "name")
         assert hasattr(md, "input_info")
         assert hasattr(md, "output_info")
-        
-
-    
-    
-
-
-
-        
-         
