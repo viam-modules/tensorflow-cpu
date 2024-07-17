@@ -1,7 +1,7 @@
 {
   "module_id": "viam:tensorflow-cpu",
   "visibility": "public",
-  "url": "https://github.com/viam-labs/tensorflow-cpu",
+  "url": "https://github.com/kharijarrett/tensorflow-cpu",
   "description": "A module of the Viam mlmodel service that allows CPU based inference on a Tensorflow model.",
   "models": [
     {

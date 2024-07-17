@@ -10,7 +10,6 @@ if ! command -v $SUDO; then
 fi
 
 
-
 if command -v apt-get; then
     $SUDO apt-get -y install python3-venv
     if dpkg -l python3-venv; then
