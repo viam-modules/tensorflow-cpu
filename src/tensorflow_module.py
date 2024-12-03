@@ -135,7 +135,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         # Do the infer. res might have >1 tensor in it
         res = self.model(data)
 
-
         # Check output against expected length
         if len(self.output_info) < len(res):
             raise Exception(
