@@ -147,12 +147,22 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         # Prep outputs for return
         out = {}
-        if len(res) > 1:
+
+        # This result (res) may be a dict with string keys and tensor values
+        # OR it could be a tuple of tensors. 
+        if len(res) ==1:
+            out[self.output_info[0][0]] = np.asarray(res[0])
+            
+        elif isinstance(res, dict):
             for named_tensor in res:
                 out[named_tensor] = np.asarray(res[named_tensor])
+
+        elif isinstance(res,tuple):
+            for i in range(len(res)):
+                out["output_"+ str(i)] = np.asarray(res[i])
         else:
-            name = self.output_info[0][0]
-            out[name] = np.asarray(res[0])
+            return {}
+
 
         return out
 
