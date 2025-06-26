@@ -37,11 +37,21 @@ class TensorflowModule(MLModel, Reconfigurable):
 
     @classmethod
     def validate_config(cls, config: ServiceConfig) -> Sequence[str]:
+        model_path_err = "model_path must be the location of the Tensorflow SavedModel directory" \
+                "or the location of a Keras model file (.keras)"
+        
         model_path = config.attributes.fields["model_path"].string_value
+        LOGGER.info("model_path: " + model_path)
         if model_path == "":
-            raise Exception(
-                "model_path must be the location of the Tensorflow SavedModel directory"
-            )
+            raise Exception(model_path_err)
+        
+         # If it's a Keras model file, okay.
+        _, ext = os.path.splitext(model_path)
+        LOGGER.info("Extension of model_path: " + ext)
+        if ext.lower() == ".keras":
+            LOGGER.info("Detected Keras model file!!! " + model_path)
+            return []
+        # If it's not a Keras model, it must be a SavedModel directory
 
         # Add trailing / if not there
         if model_path[-1] != "/":
@@ -49,7 +59,10 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         # Check that model_path points to a dir with a pb file in it
         # and that the model file isn't too big (>500 MB)
-        isValid = False
+        isValidSavedModel = False
+        if not os.path.isdir(model_path):
+            raise Exception(model_path_err)
+        
         for file in os.listdir(model_path):
             if ".pb" in file:
                 isValid = True
@@ -60,11 +73,10 @@ class TensorflowModule(MLModel, Reconfigurable):
                         + str(sizeMB)
                         + "MB)"
                     )
-        if not isValid:
-            raise Exception(
-                "model_path must be the location of a SavedModel directory with a .pb file"
-            )
 
+        if not isValidSavedModel:
+            raise Exception(model_path_err)
+        
         return []
 
     def reconfigure(
@@ -72,8 +84,30 @@ class TensorflowModule(MLModel, Reconfigurable):
     ):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
+        self.is_keras = False
 
-        # This is where we do the actual loading of the model
+        _, ext = os.path.splitext(self.model_path)
+        if ext.lower() == ".keras":
+            LOGGER.info("Detected Keras model file!!! " + self.model_path)
+            # If it's a Keras model, load it using the Keras API
+            self.model = tf.keras.models.load_model(self.model_path)
+            self.is_keras = True
+
+            # Fill input and output info with the first and last layer's config
+            self.input_info = []
+            self.output_info = []
+            
+            in_config = self.model.layers[0].get_config()
+            out_config = self.model.layers[-1].get_config()
+
+            self.input_info.append((in_config.get("name"), in_config.get("batch_shape"), in_config.get("dtype")))
+            self.output_info.append((out_config.get("name"), out_config.get("batch_shape"), out_config.get("dtype")))
+
+            print("Input Info:", self.input_info)
+            print("Output Info:", self.output_info)
+            return
+
+        # This is where we do the actual loading of the SavedModel
         self.model = tf.saved_model.load(self.model_path)
 
         # Save the input_info and output_info as a list of tuples,
@@ -106,7 +140,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         Returns:
             Dict[str, NDArray]: A dictionary of output flat tensors as specified in the metadata
         """
-
+        
         # Check input against expected length
         inputVars = list(input_tensors.keys())
         if len(inputVars) > len(self.input_info):
@@ -225,3 +259,5 @@ def prepType(tensorType):
     s = str(tensorType)
     inds = [i for i, letter in enumerate(s) if letter == "'"]
     return s[inds[0] + 1 : inds[1]]
+
+
