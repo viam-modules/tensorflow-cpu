@@ -85,6 +85,8 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
+        self.input_info = []
+        self.output_info = []
 
         _, ext = os.path.splitext(self.model_path)
         if ext.lower() == ".keras":
@@ -92,16 +94,17 @@ class TensorflowModule(MLModel, Reconfigurable):
             # If it's a Keras model, load it using the Keras API
             self.model = tf.keras.models.load_model(self.model_path)
             self.is_keras = True
-
-            # Fill input and output info with the first and last layer's config
-            self.input_info = []
-            self.output_info = []
-            
+    
             in_config = self.model.layers[0].get_config()
             out_config = self.model.layers[-1].get_config()
 
+            # Keras model's output config's dtype is (sometimes?) a whole dict
+            outType = out_config.get("dtype")  
+            if type(outType) is not str:
+                outType = None
+
             self.input_info.append((in_config.get("name"), in_config.get("batch_shape"), in_config.get("dtype")))
-            self.output_info.append((out_config.get("name"), out_config.get("batch_shape"), out_config.get("dtype")))
+            self.output_info.append((out_config.get("name"), out_config.get("batch_shape"), outType))
 
             print("Input Info:", self.input_info)
             print("Output Info:", self.output_info)
@@ -112,8 +115,6 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         # Save the input_info and output_info as a list of tuples,
         # each being a tensor with (name, shape, underlying type)
-        self.input_info = []
-        self.output_info = []
 
         f = self.model.signatures["serving_default"]
 
@@ -140,7 +141,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         Returns:
             Dict[str, NDArray]: A dictionary of output flat tensors as specified in the metadata
         """
-        
+
         # Check input against expected length
         inputVars = list(input_tensors.keys())
         if len(inputVars) > len(self.input_info):
@@ -165,6 +166,12 @@ class TensorflowModule(MLModel, Reconfigurable):
             data = np.squeeze(np.asarray(input_list), axis=0)
         else:
             data = np.asarray(input_list)
+
+        if self.is_keras:
+            res = self.model.predict(data)
+            out = {}
+            out["output_0"] = np.asarray(res)
+            return out
 
         # Do the infer. res might have >1 tensor in it
         res = self.model(data)
@@ -214,18 +221,11 @@ class TensorflowModule(MLModel, Reconfigurable):
         input_info = []
         output_info = []
         for inputT in self.input_info:
-            info = TensorInfo(
-                name=inputT[0], shape=inputT[1], data_type=prepType(inputT[2])
-            )
+            info = TensorInfo(name=inputT[0], shape=prepShape(inputT[1]), data_type=prepType(inputT[2], self.is_keras))
             input_info.append(info)
 
         for output in self.output_info:
-            info = TensorInfo(
-                name=output[0],
-                shape=output[1],
-                data_type=prepType(output[2]),
-                extra=extra,
-            )
+            info = TensorInfo(name=output[0], shape=prepShape(output[1]), data_type=prepType(output[2], self.is_keras), extra=extra)
             output_info.append(info)
 
         return Metadata(
@@ -244,6 +244,8 @@ class TensorflowModule(MLModel, Reconfigurable):
 
 # Want to return a list of ints (-1 for None)
 def prepShape(tensorShape):
+    if tensorShape is None:
+        return None
     out = []
     for t in list(tensorShape):
         if t is None:
@@ -254,8 +256,13 @@ def prepShape(tensorShape):
 
 
 # Want to return a simple string ("float32", "int64", etc.)
-def prepType(tensorType):
-    # The dtype uses an escaped apostrophe around the actual type name so use that
+def prepType(tensorType, is_keras):
+    if tensorType is None or type(tensorType) is not str:
+        return "unknown"
+    if is_keras:
+        return tensorType
+
+    # The dtype for SavedModel uses an escaped apostrophe around the actual type name so use that
     s = str(tensorType)
     inds = [i for i, letter in enumerate(s) if letter == "'"]
     return s[inds[0] + 1 : inds[1]]
