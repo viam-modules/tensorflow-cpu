@@ -44,7 +44,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         if model_path == "":
             raise Exception(model_path_err)
         
-         # If it's a Keras model file, okay. Otherwise, it must be a SavedModel directory
+        # If it's a Keras model file, okay. Otherwise, it must be a SavedModel directory
         _, ext = os.path.splitext(model_path)
         if ext.lower() == ".keras":
             LOGGER.info("Detected Keras model file at " + model_path)
@@ -61,7 +61,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             raise Exception(model_path_err)
         for file in os.listdir(model_path):
             if ".pb" in file:
-                isValid = True
+                isValidSavedModel = True
                 sizeMB = os.stat(model_path + file).st_size / (1024 * 1024)
                 if sizeMB > 500:
                     LOGGER.warn(
@@ -97,7 +97,7 @@ class TensorflowModule(MLModel, Reconfigurable):
 
             # Keras model's output config's dtype is (sometimes?) a whole dict
             outType = out_config.get("dtype")  
-            if type(outType) is not str:
+            if not isinstance(outType, str):
                 outType = None
 
             self.input_info.append((in_config.get("name"), in_config.get("batch_shape"), in_config.get("dtype")))
@@ -249,7 +249,7 @@ def prepShape(tensorShape):
 
 # Want to return a simple string ("float32", "int64", etc.)
 def prepType(tensorType, is_keras):
-    if tensorType is None or type(tensorType) is not str:
+    if tensorType is None or not isinstance(tensorType):
         return "unknown"
     if is_keras:
         return tensorType
