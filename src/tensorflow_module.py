@@ -41,18 +41,15 @@ class TensorflowModule(MLModel, Reconfigurable):
                 "or the location of a Keras model file (.keras)"
         
         model_path = config.attributes.fields["model_path"].string_value
-        LOGGER.info("model_path: " + model_path)
         if model_path == "":
             raise Exception(model_path_err)
         
-         # If it's a Keras model file, okay.
+         # If it's a Keras model file, okay. Otherwise, it must be a SavedModel directory
         _, ext = os.path.splitext(model_path)
-        LOGGER.info("Extension of model_path: " + ext)
         if ext.lower() == ".keras":
-            LOGGER.info("Detected Keras model file!!! " + model_path)
+            LOGGER.info("Detected Keras model file at " + model_path)
             return []
-        # If it's not a Keras model, it must be a SavedModel directory
-
+        
         # Add trailing / if not there
         if model_path[-1] != "/":
             model_path = model_path + "/"
@@ -62,7 +59,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         isValidSavedModel = False
         if not os.path.isdir(model_path):
             raise Exception(model_path_err)
-        
         for file in os.listdir(model_path):
             if ".pb" in file:
                 isValid = True
@@ -85,16 +81,17 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
-        self.input_info = []
+        self.input_info = []      # input and output info are lists of tuples (name, shape, underlying type)
         self.output_info = []
+        
 
         _, ext = os.path.splitext(self.model_path)
         if ext.lower() == ".keras":
-            LOGGER.info("Detected Keras model file!!! " + self.model_path)
             # If it's a Keras model, load it using the Keras API
             self.model = tf.keras.models.load_model(self.model_path)
             self.is_keras = True
     
+            # For now, we use first and last layer to get input and output info
             in_config = self.model.layers[0].get_config()
             out_config = self.model.layers[-1].get_config()
 
@@ -106,16 +103,10 @@ class TensorflowModule(MLModel, Reconfigurable):
             self.input_info.append((in_config.get("name"), in_config.get("batch_shape"), in_config.get("dtype")))
             self.output_info.append((out_config.get("name"), out_config.get("batch_shape"), outType))
 
-            print("Input Info:", self.input_info)
-            print("Output Info:", self.output_info)
             return
 
         # This is where we do the actual loading of the SavedModel
         self.model = tf.saved_model.load(self.model_path)
-
-        # Save the input_info and output_info as a list of tuples,
-        # each being a tensor with (name, shape, underlying type)
-
         f = self.model.signatures["serving_default"]
 
         # f.inputs may include "empty" inputs as resources, but _arg_keywords only contains input tensor names
@@ -129,6 +120,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         for out in f.outputs:
             info = (out.name, prepShape(out.get_shape()), out.dtype)
             self.output_info.append(info)
+
 
     async def infer(
         self, input_tensors: Dict[str, NDArray], *, timeout: Optional[float] = None
