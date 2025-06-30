@@ -185,7 +185,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         # OR it could be a tuple of tensors. 
         if len(res) ==1:
             out[self.output_info[0][0]] = np.asarray(res[0])
-            
+
         elif isinstance(res, dict):
             for named_tensor in res:
                 out[named_tensor] = np.asarray(res[named_tensor])
@@ -249,7 +249,7 @@ def prepShape(tensorShape):
 
 # Want to return a simple string ("float32", "int64", etc.)
 def prepType(tensorType, is_keras):
-    if tensorType is None or not isinstance(tensorType):
+    if tensorType is None or not isinstance(tensorType, str):
         return "unknown"
     if is_keras:
         return tensorType
@@ -258,5 +258,3 @@ def prepType(tensorType, is_keras):
     s = str(tensorType)
     inds = [i for i, letter in enumerate(s) if letter == "'"]
     return s[inds[0] + 1 : inds[1]]
-
-
