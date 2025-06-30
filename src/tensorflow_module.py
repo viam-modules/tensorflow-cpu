@@ -47,7 +47,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         # If it's a Keras model file, okay. Otherwise, it must be a SavedModel directory
         _, ext = os.path.splitext(model_path)
         if ext.lower() == ".keras":
-            LOGGER.warn("Detected Keras model file at ", model_path, ". Please note that Keras support is limited.")
+            LOGGER.info("Detected Keras model file at " + model_path + ". Please note Keras support is limited.")
             return []
         
         # Add trailing / if not there
