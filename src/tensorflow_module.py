@@ -37,7 +37,7 @@ class TensorflowModule(MLModel, Reconfigurable):
 
     @classmethod
     def validate_config(cls, config: ServiceConfig) -> Sequence[str]:
-        model_path_err = "model_path must be the location of the Tensorflow SavedModel directory" \
+        model_path_err = "model_path must be the location of the Tensorflow SavedModel directory " \
                 "or the location of a Keras model file (.keras)"
         
         model_path = config.attributes.fields["model_path"].string_value

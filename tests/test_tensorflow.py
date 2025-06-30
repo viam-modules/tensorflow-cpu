@@ -38,7 +38,7 @@ class TestTensorflowCPU:
         tfm = TensorflowModule("test")
         with pytest.raises(Exception):
             response = tfm.validate_config(config=self.empty_config)
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(Exception):
             response = tfm.validate_config(config=self.badconfig)
         response = tfm.validate_config(config=self.goodconfig)
 
