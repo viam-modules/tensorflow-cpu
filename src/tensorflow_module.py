@@ -123,7 +123,10 @@ class TensorflowModule(MLModel, Reconfigurable):
 
 
     async def infer(
-        self, input_tensors: Dict[str, NDArray], *, timeout: Optional[float] = None
+        self, input_tensors: Dict[str, NDArray], 
+        *,
+        extra: Optional[Mapping[str, ValueTypes]] = None,
+        timeout: Optional[float] = None
     ) -> Dict[str, NDArray]:
         """Take an already ordered input tensor as an array, make an inference on the model, and return an output tensor map.
 
@@ -199,7 +202,7 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         return out
 
-    async def metadata(self, *, timeout: Optional[float] = None) -> Metadata:
+    async def metadata(self, *, extra: Optional[Mapping[str, ValueTypes]] = None, timeout: Optional[float] = None) -> Metadata:
         """Get the metadata (such as name, type, expected tensor/array shape, inputs, and outputs) associated with the ML model.
 
         Returns:
