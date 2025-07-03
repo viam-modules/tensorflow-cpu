@@ -14,7 +14,7 @@ async def main():
     """
 
     Registry.register_resource_creator(
-        MLModel.SUBTYPE,
+        MLModel.API,
         TensorflowModule.MODEL,
         ResourceCreatorRegistration(
             TensorflowModule.new_service, TensorflowModule.validate_config
@@ -22,7 +22,7 @@ async def main():
     )
     module = Module.from_args()
 
-    module.add_model_from_registry(MLModel.SUBTYPE, TensorflowModule.MODEL)
+    module.add_model_from_registry(MLModel.API, TensorflowModule.MODEL)
     await module.start()
 
 
