@@ -160,7 +160,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             data = np.asarray(input_list)
 
         if self.is_keras:
-            res = self.model.predict(data)
+            res = self.model.predict(data, verbose=0)
             out = {}
             out["output_0"] = np.asarray(res)
             return out
