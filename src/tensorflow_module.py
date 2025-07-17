@@ -1,5 +1,5 @@
 import os
-from typing import ClassVar, Mapping, Sequence, Dict, Optional
+from typing import ClassVar, Mapping, Sequence, Dict, Optional, Tuple
 from numpy.typing import NDArray
 from typing_extensions import Self
 from viam.services.mlmodel import MLModel, Metadata, TensorInfo
@@ -14,8 +14,6 @@ from viam.logging import getLogger
 import numpy as np
 import google.protobuf.struct_pb2 as pb
 import tensorflow as tf
-
-
 
 
 LOGGER = getLogger(__name__)
@@ -36,20 +34,28 @@ class TensorflowModule(MLModel, Reconfigurable):
         return service
 
     @classmethod
-    def validate_config(cls, config: ServiceConfig) -> Sequence[str]:
-        model_path_err = "model_path must be the location of the Tensorflow SavedModel directory " \
-                "or the location of a Keras model file (.keras)"
-        
+    def validate_config(
+        cls, config: ServiceConfig
+    ) -> Tuple[Sequence[str], Sequence[str]]:
+        model_path_err = (
+            "model_path must be the location of the Tensorflow SavedModel directory "
+            "or the location of a Keras model file (.keras)"
+        )
+
         model_path = config.attributes.fields["model_path"].string_value
         if model_path == "":
             raise Exception(model_path_err)
-        
+
         # If it's a Keras model file, okay. Otherwise, it must be a SavedModel directory
         _, ext = os.path.splitext(model_path)
         if ext.lower() == ".keras":
-            LOGGER.info("Detected Keras model file at " + model_path + ". Please note Keras support is limited.")
-            return []
-        
+            LOGGER.info(
+                "Detected Keras model file at "
+                + model_path
+                + ". Please note Keras support is limited."
+            )
+            return ([], [])
+
         # Add trailing / if not there
         if model_path[-1] != "/":
             model_path = model_path + "/"
@@ -72,8 +78,8 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         if not isValidSavedModel:
             raise Exception(model_path_err)
-        
-        return []
+
+        return ([], [])
 
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
@@ -81,27 +87,34 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
-        self.input_info = []      # input and output info are lists of tuples (name, shape, underlying type)
+        self.input_info = []  # input and output info are lists of tuples (name, shape, underlying type)
         self.output_info = []
-        
 
         _, ext = os.path.splitext(self.model_path)
         if ext.lower() == ".keras":
             # If it's a Keras model, load it using the Keras API
             self.model = tf.keras.models.load_model(self.model_path)
             self.is_keras = True
-    
+
             # For now, we use first and last layer to get input and output info
             in_config = self.model.layers[0].get_config()
             out_config = self.model.layers[-1].get_config()
 
             # Keras model's output config's dtype is (sometimes?) a whole dict
-            outType = out_config.get("dtype")  
+            outType = out_config.get("dtype")
             if not isinstance(outType, str):
                 outType = None
 
-            self.input_info.append((in_config.get("name"), in_config.get("batch_shape"), in_config.get("dtype")))
-            self.output_info.append((out_config.get("name"), out_config.get("batch_shape"), outType))
+            self.input_info.append(
+                (
+                    in_config.get("name"),
+                    in_config.get("batch_shape"),
+                    in_config.get("dtype"),
+                )
+            )
+            self.output_info.append(
+                (out_config.get("name"), out_config.get("batch_shape"), outType)
+            )
 
             return
 
@@ -121,12 +134,12 @@ class TensorflowModule(MLModel, Reconfigurable):
             info = (out.name, prepShape(out.get_shape()), out.dtype)
             self.output_info.append(info)
 
-
     async def infer(
-        self, input_tensors: Dict[str, NDArray], 
+        self,
+        input_tensors: Dict[str, NDArray],
         *,
         extra: Optional[Mapping[str, ValueTypes]] = None,
-        timeout: Optional[float] = None
+        timeout: Optional[float] = None,
     ) -> Dict[str, NDArray]:
         """Take an already ordered input tensor as an array, make an inference on the model, and return an output tensor map.
 
@@ -185,24 +198,28 @@ class TensorflowModule(MLModel, Reconfigurable):
         out = {}
 
         # This result (res) may be a dict with string keys and tensor values
-        # OR it could be a tuple of tensors. 
-        if len(res) ==1:
+        # OR it could be a tuple of tensors.
+        if len(res) == 1:
             out[self.output_info[0][0]] = np.asarray(res[0])
 
         elif isinstance(res, dict):
             for named_tensor in res:
                 out[named_tensor] = np.asarray(res[named_tensor])
 
-        elif isinstance(res,tuple):
+        elif isinstance(res, tuple):
             for i in range(len(res)):
-                out["output_"+ str(i)] = np.asarray(res[i])
+                out["output_" + str(i)] = np.asarray(res[i])
         else:
             return {}
 
-
         return out
 
-    async def metadata(self, *, extra: Optional[Mapping[str, ValueTypes]] = None, timeout: Optional[float] = None) -> Metadata:
+    async def metadata(
+        self,
+        *,
+        extra: Optional[Mapping[str, ValueTypes]] = None,
+        timeout: Optional[float] = None,
+    ) -> Metadata:
         """Get the metadata (such as name, type, expected tensor/array shape, inputs, and outputs) associated with the ML model.
 
         Returns:
@@ -216,11 +233,20 @@ class TensorflowModule(MLModel, Reconfigurable):
         input_info = []
         output_info = []
         for inputT in self.input_info:
-            info = TensorInfo(name=inputT[0], shape=prepShape(inputT[1]), data_type=prepType(inputT[2], self.is_keras))
+            info = TensorInfo(
+                name=inputT[0],
+                shape=prepShape(inputT[1]),
+                data_type=prepType(inputT[2], self.is_keras),
+            )
             input_info.append(info)
 
         for output in self.output_info:
-            info = TensorInfo(name=output[0], shape=prepShape(output[1]), data_type=prepType(output[2], self.is_keras), extra=extra)
+            info = TensorInfo(
+                name=output[0],
+                shape=prepShape(output[1]),
+                data_type=prepType(output[2], self.is_keras),
+                extra=extra,
+            )
             output_info.append(info)
 
         return Metadata(
@@ -232,7 +258,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         command: Mapping[str, ValueTypes],
         *,
         timeout: Optional[float] = None,
-        **kwargs
+        **kwargs,
     ):
         return NotImplementedError
 
