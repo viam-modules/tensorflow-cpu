@@ -34,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build and Publish
-        uses: viamrobotics/build-action@v1.4
+        uses: viamrobotics/build-action@v1.6
         with:
           version: ${{ github.event.release.tag_name }}
           ref: ${{ github.sha }}
