@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
-.setup: build.sh
-	./build.sh
+.setup: setup.sh
+	./setup.sh
 
 setup: .setup
 	
