@@ -1,10 +1,17 @@
-setup:
+SHELL := /bin/bash
+
+.setup: build.sh
 	./build.sh
+
+setup: .setup
 	
 test:
 	PYTHONPATH=./src pytest
+
+dist/main: .setup src/*
+	source .venv/bin/activate && python -m PyInstaller --onefile --hidden-import="googleapiclient" --add-data="./src:src" src/main.py
 	
-dist/archive.tar.gz:
+dist/archive.tar.gz: dist/main
 	tar -czvf dist/archive.tar.gz dist/main
 
 lint:
