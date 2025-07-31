@@ -9,7 +9,11 @@ test:
 	PYTHONPATH=./src pytest
 
 dist/main: .setup src/*
+ifeq ($(OS),Windows_NT)
+	source .venv/Scripts/activate && python -m PyInstaller --onefile --hidden-import="googleapiclient" --add-data="./src:src" src/main.py
+else
 	source .venv/bin/activate && python -m PyInstaller --onefile --hidden-import="googleapiclient" --add-data="./src:src" src/main.py
+endif
 
 dist/archive.tar.gz: dist/main
 ifeq ($(OS),Windows_NT)
