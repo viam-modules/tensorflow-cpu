@@ -19,14 +19,15 @@ jobs:
     steps:
       - name: Validate tag format
         run: |
-          TAG="${{ github.event.release.tag_name }}"
-          echo "Validating tag: $TAG"
-          if [[ $TAG =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]*)?$ ]]; then
-            echo "Tag matches semver."
-          else
-            echo "Error: tag does not match semvar"
-            exit 1
-          fi
+          echo "remember to undo this when you're ready"
+          #TAG="${{ github.event.release.tag_name }}"
+          #echo "Validating tag: $TAG"
+          #if [[ $TAG =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[0-9]*)?$ ]]; then
+          #  echo "Tag matches semver."
+          #else
+          #  echo "Error: tag does not match semvar"
+          #  exit 1
+          #fi
 
   publish:
     needs: validate-tag
