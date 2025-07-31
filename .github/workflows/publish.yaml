@@ -1,6 +1,7 @@
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 # This regex matches either a semver (e.g. 1.2.3)
 # or a release candidate in one of these forms:
@@ -28,7 +29,7 @@ jobs:
           fi
   publish:
     needs: validate-tag
-    name: Build and Upload module 
+    name: Build and Upload module
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -39,4 +40,4 @@ jobs:
           version: ${{ github.event.release.tag_name }}
           ref: ${{ github.sha }}
           key-id: ${{ secrets.viam_key_id }}
-          key-value: ${{ secrets.viam_key_value }} 
+          key-value: ${{ secrets.viam_key_value }}
