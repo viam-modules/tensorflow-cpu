@@ -70,3 +70,5 @@ jobs:
         run: |
           ./viam.exe login api-key --key-id ${{ secrets.viam_key_id }} --key ${{ secrets.viam_key_value }}
           ./viam.exe module upload --platform windows/amd64 --version ${{ github.ref_name }} --upload dist/module.tar.gz
+      - name: REVERTME pip freeze
+        run: pip freeze
