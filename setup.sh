@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # setup.sh -- environment bootstrapper for python virtualenv
 
-set -euo pipefail
+set -exuo pipefail
 
 SUDO=sudo
 if ! command -v $SUDO; then
@@ -28,6 +28,8 @@ fi
 
 source .env
 echo "creating virtualenv at $VIRTUAL_ENV"
+# WARNING: As of August 2025, Tensorflow is not available in Python 3.13. If you get stuck here,
+# consider using python3.12 instead.
 python3 -m venv $VIRTUAL_ENV
 
 echo "installing dependencies from requirements.txt"
