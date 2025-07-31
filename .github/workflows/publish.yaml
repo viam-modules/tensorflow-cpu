@@ -64,7 +64,7 @@ jobs:
       - name: Set up repo
         run: make setup
       - name: Build module
-        run: make dist/module.tar.gz
+        run: make dist/archive.tar.gz
       - name: Publish to the registry
         if: ${{ github.event_name != 'workflow_dispatch' }}
         run: |
