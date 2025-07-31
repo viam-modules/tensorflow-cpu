@@ -51,7 +51,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set up Python 3.12
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           # As of August 2025, Tensorflow doesn't support Python 3.13.
           # https://github.com/tensorflow/tensorflow/issues/78774
