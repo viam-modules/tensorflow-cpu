@@ -33,4 +33,4 @@ echo installing dependencies from requirements.txt
 $VIRTUAL_ENV/bin/pip install --prefer-binary -r requirements.txt -U
 source $VIRTUAL_ENV/bin/activate
 $PYTHON -m PyInstaller --onefile --hidden-import="googleapiclient" --add-data="./src:src"  src/main.py
-tar -czvf dist/archive.tar.gz dist/main
+tar -czvf dist/archive.tar.gz ./dist/main meta.json

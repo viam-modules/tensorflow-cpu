@@ -52,7 +52,6 @@ class TensorflowModule(MLModel, Reconfigurable):
             LOGGER.info(
                 "Detected Keras model file at "
                 + model_path
-                + ". Please note Keras support is limited."
             )
             return ([], [])
 
@@ -96,25 +95,35 @@ class TensorflowModule(MLModel, Reconfigurable):
             self.model = tf.keras.models.load_model(self.model_path)
             self.is_keras = True
 
-            # For now, we use first and last layer to get input and output info
-            in_config = self.model.layers[0].get_config()
-            out_config = self.model.layers[-1].get_config()
+            # So instead of handling just a single-input and single-output layer (as is when the Model is created using the 
+            # Sequential API), we need to support the Functional API too which may have multi-input and output layers
+            self.input_info  = [(i.name, i.shape, i.dtype) for i in self.model.inputs]
+            self.output_info = [(o.name, o.shape, o.dtype) for o in self.model.outputs]
 
-            # Keras model's output config's dtype is (sometimes?) a whole dict
-            outType = out_config.get("dtype")
-            if not isinstance(outType, str):
-                outType = None
+            # If input_info and output_info are empty, default to the first and last layer of the model
+            if len(self.input_info) == 0 and len(self.output_info) == 0:
+                in_config = self.model.layers[0].get_config()
+                out_config = self.model.layers[-1].get_config()
 
-            self.input_info.append(
-                (
-                    in_config.get("name"),
-                    in_config.get("batch_shape"),
-                    in_config.get("dtype"),
+                # Keras model's output config's dtype is (sometimes?) a whole dict
+                outType = out_config.get("dtype")
+                if not isinstance(outType, str):
+                    outType = None
+
+                self.input_info.append(
+                    (
+                        in_config.get("name"),
+                        in_config.get("batch_shape"),
+                        in_config.get("dtype"),
+                    )
                 )
-            )
-            self.output_info.append(
-                (out_config.get("name"), out_config.get("batch_shape"), outType)
-            )
+                self.output_info.append(
+                    (
+                        out_config.get("name"),
+                        out_config.get("batch_shape"),
+                        outType,
+                    )
+                )
 
             return
 
@@ -177,12 +186,9 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         if self.is_keras:
             res = self.model.predict(data, verbose=0)
-            out = {}
-            out["output_0"] = np.asarray(res)
-            return out
-
-        # Do the infer. res might have >1 tensor in it
-        res = self.model(data)
+        else:
+            # Do the infer. res might have >1 tensor in it
+            res = self.model(data)
 
         # Check output against expected length
         if len(self.output_info) < len(res):
@@ -209,8 +215,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         elif isinstance(res, tuple):
             for i in range(len(res)):
                 out["output_" + str(i)] = np.asarray(res[i])
-        else:
-            return {}
 
         return out
 
