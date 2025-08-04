@@ -10,12 +10,12 @@ test:
 	PYTHONPATH=./src pytest
 
 ifeq ($(OS),Windows_NT)
-ACTIVATE = source .venv/Scripts/activate
+ACTIVATE = .venv/Scripts/activate
 else
-ACTIVATE = source .venv/bin/activate
+ACTIVATE = .venv/bin/activate
 endif
 dist/main: .setup src/*
-	$(ACTIVATE) && python -m PyInstaller --onefile --hidden-import="googleapiclient" --add-data="./src:src" src/main.py
+	source $(ACTIVATE) && python -m PyInstaller --onefile --hidden-import="googleapiclient" --add-data="./src:src" src/main.py
 
 dist/archive.tar.gz: dist/main
 ifeq ($(OS),Windows_NT)
