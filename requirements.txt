@@ -1,9 +1,9 @@
-viam-sdk
+viam-sdk==0.50.0
 cython
 setuptools
 numpy < 2.0.0
 h5py
-tensorflow==2.16.1
+tensorflow==2.18.0
 tf-keras-nightly
 pyinstaller
 pylint

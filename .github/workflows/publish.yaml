@@ -27,6 +27,7 @@ jobs:
             echo "Error: tag does not match semvar"
             exit 1
           fi
+
   publish:
     needs: validate-tag
     name: Build and Upload module
@@ -35,9 +36,36 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build and Publish
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         uses: viamrobotics/build-action@v1.6
         with:
           version: ${{ github.event.release.tag_name }}
           ref: ${{ github.sha }}
           key-id: ${{ secrets.viam_key_id }}
           key-value: ${{ secrets.viam_key_value }}
+
+  publish-windows:
+    needs: validate-tag
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          # As of August 2025, Tensorflow doesn't support Python 3.13.
+          # https://github.com/tensorflow/tensorflow/issues/78774
+          python-version: 3.12
+      - name: Download CLI
+        run: |
+          curl -o viam.exe "https://storage.googleapis.com/packages.viam.com/apps/viam-cli/viam-cli-latest-windows-amd64.exe"
+          ./viam.exe version
+      - name: Set up repo
+        run: make setup
+      - name: Build module
+        run: make dist/archive.tar.gz
+      - name: Publish to the registry
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          ./viam.exe login api-key --key-id ${{ secrets.viam_key_id }} --key ${{ secrets.viam_key_value }}
+          ./viam.exe module upload --platform windows/amd64 --version ${{ github.ref_name }} --upload dist/archive.tar.gz
