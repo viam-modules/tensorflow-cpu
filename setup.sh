@@ -33,7 +33,7 @@ echo "creating virtualenv at $VIRTUAL_ENV"
 python3 -m venv $VIRTUAL_ENV
 
 echo "installing dependencies from requirements.txt"
-if -f $VIRTUAL_ENV/bin/activate; then # Linux
+if [ -f $VIRTUAL_ENV/bin/activate ]; then # Linux
     source $VIRTUAL_ENV/bin/activate
 else
     source $VIRTUAL_ENV/Scripts/activate # Windows
