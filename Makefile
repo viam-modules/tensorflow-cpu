@@ -3,8 +3,9 @@ SHELL := /bin/bash
 .setup: setup.sh
 	./setup.sh
 
+.PHONY: setup
 setup: .setup
-	
+
 test:
 	PYTHONPATH=./src pytest
 
