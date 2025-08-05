@@ -1,30 +1,33 @@
 import asyncio
 
 from viam.module.module import Module
-from viam.resource.registry import Registry, ResourceCreatorRegistration
-from viam.services.mlmodel import MLModel
-from src.tensorflow_module import TensorflowModule
+from viam.logging import getLogger
+# from viam.resource.registry import Registry, ResourceCreatorRegistration
+# from viam.services.mlmodel import MLModel
+import src.tensorflow_module as tensorflow_module
 
 
-async def main():
-    """
-    This function creates and starts a new module, after adding all desired
-    resource models. Resource creators must be registered to the resource
-    registry before the module adds the resource model.
-    """
+# async def main():
+#     """
+#     This function creates and starts a new module, after adding all desired
+#     resource models. Resource creators must be registered to the resource
+#     registry before the module adds the resource model.
+#     """
 
-    Registry.register_resource_creator(
-        MLModel.API,
-        TensorflowModule.MODEL,
-        ResourceCreatorRegistration(
-            TensorflowModule.new_service, TensorflowModule.validate_config
-        ),
-    )
-    module = Module.from_args()
+#     Registry.register_resource_creator(
+#         MLModel.API,
+#         TensorflowModule.MODEL,
+#         ResourceCreatorRegistration(
+#             TensorflowModule.new_service, TensorflowModule.validate_config
+#         ),
+#     )
+#     module = Module.from_args()
 
-    module.add_model_from_registry(MLModel.API, TensorflowModule.MODEL)
-    await module.start()
+#     module.add_model_from_registry(MLModel.API, TensorflowModule.MODEL)
+#     await module.start()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    LOGGER = getLogger("ADWAIT")
+    LOGGER.info("Starting TensorFlow Module")
+    asyncio.run(Module.run_from_registry())
