@@ -21,7 +21,7 @@ dist/archive.tar.gz: dist/main
 ifeq ($(OS),Windows_NT)
 	tar -czvf dist/archive.tar.gz dist/main.exe
 else
-	tar -czvf dist/archive.tar.gz dist/main
+	tar -czvf dist/archive.tar.gz dist/main meta.json
 endif
 
 lint:
