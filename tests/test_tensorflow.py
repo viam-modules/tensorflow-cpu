@@ -16,6 +16,7 @@ def make_component_config(dictionary: Mapping[str, Any]) -> ComponentConfig:
 
 def make_sequential_keras_model():
     model = keras.Sequential([keras.layers.Dense(10), keras.layers.Dense(5)])
+    model.build(input_shape=(None, 10))
     model.save("./tests/testmodel.keras")
 
 class TestTensorflowCPU:
@@ -81,7 +82,7 @@ class TestTensorflowCPU:
     async def test_infer_keras(self):
         tf_keras_model = TensorflowModule("test")
         tf_keras_model.reconfigure(config=self.config_keras, dependencies=None)
-        fakeInput = {"input_1": np.ones([1, 5])}
+        fakeInput = {"input_1": np.ones([1, 10])}
         out = await tf_keras_model.infer(input_tensors=fakeInput)
         assert isinstance(out, Dict)
         for output in out:
