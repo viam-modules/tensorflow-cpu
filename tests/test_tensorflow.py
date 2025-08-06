@@ -7,7 +7,7 @@ import pytest
 import tensorflow as tf
 import numpy as np
 from numpy.typing import NDArray
-
+import keras
 
 def make_component_config(dictionary: Mapping[str, Any]) -> ComponentConfig:
         struct = Struct()
@@ -15,9 +15,7 @@ def make_component_config(dictionary: Mapping[str, Any]) -> ComponentConfig:
         return ComponentConfig(attributes=struct)
 
 def make_sequential_keras_model():
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(5,)),
-        tf.keras.layers.Softmax()])
+    model = keras.Sequential([keras.layers.Dense(10), keras.layers.Dense(5)])
     model.save("./tests/testmodel.keras")
 
 class TestTensorflowCPU:
