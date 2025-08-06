@@ -97,22 +97,8 @@ class TensorflowModule(MLModel, Reconfigurable):
 
             # So instead of handling just a single-input and single-output layer (as is when the Model is created using the 
             # Sequential API), we need to support the Functional API too which may have multi-input and output layers
-            for inputs in self.model.inputs:
-                self.input_info.append(
-                    (
-                        inputs.name,
-                        inputs.shape,
-                        inputs.dtype
-                    )
-                )
-            for outputs in self.model.outputs:
-                self.output_info.append(
-                    (
-                        outputs.name,
-                        outputs.shape,
-                        outputs.dtype
-                    )
-                )
+            self.input_info  = [(i.name, i.shape, i.dtype) for i in self.model.inputs]
+            self.output_info = [(o.name, o.shape, o.dtype) for o in self.model.outputs]
 
             # If input_info and output_info are empty, default to the first and last layer of the model
             if len(self.input_info) == 0 and len(self.output_info) == 0:
@@ -205,7 +191,6 @@ class TensorflowModule(MLModel, Reconfigurable):
             res = self.model(data)
 
         # Check output against expected length
-
         if len(self.output_info) < len(res):
             raise Exception(
                 "there are more output tensors ("

@@ -201,6 +201,7 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
 # Keras executable
 *.keras
 
