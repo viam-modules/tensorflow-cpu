@@ -87,7 +87,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
-        self.input_info = []  # input and output info are lists of tuples (name, shape, underlying type)
+        self.input_info = []
         self.output_info = []
 
         _, ext = os.path.splitext(self.model_path)
