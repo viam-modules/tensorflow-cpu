@@ -19,9 +19,9 @@ dist/main: .setup src/*
 
 dist/archive.tar.gz: dist/main
 ifeq ($(OS),Windows_NT)
-	tar -czvf dist/archive.tar.gz dist/main.exe
+	tar -czvf dist/archive.tar.gz dist/main.exe meta.json
 else
-	tar -czvf dist/archive.tar.gz dist/main
+	tar -czvf dist/archive.tar.gz dist/main meta.json
 endif
 
 lint:
