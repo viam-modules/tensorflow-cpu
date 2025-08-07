@@ -87,7 +87,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
-        self.input_info = []
+        self.input_info = [] # input and output info are lists of tuples (name, shape, underlying type)
         self.output_info = []
 
         _, ext = os.path.splitext(self.model_path)
@@ -105,7 +105,7 @@ class TensorflowModule(MLModel, Reconfigurable):
                     self.input_info = [(i.name, i.shape, i.dtype) for i in inputs]
                 else:
                     raise AttributeError("No inputs")
-            except (AttributeError, ValueError):
+            except AttributeError:
                 in_config = self.model.layers[0].get_config()
                 self.input_info.append(
                     (
@@ -121,11 +121,12 @@ class TensorflowModule(MLModel, Reconfigurable):
                     self.output_info = [(o.name, o.shape, o.dtype) for o in outputs]
                 else:
                     raise AttributeError("No outputs")
-            except (AttributeError, ValueError):
+            except AttributeError:
                 out_config = self.model.layers[-1].get_config()
                 # Keras model's output config's dtype is (sometimes?) a whole dict
                 outType = out_config.get("dtype")
                 if not isinstance(outType, str):
+                    LOGGER.info("Output dtype is not a string, using 'None' instead")
                     outType = None
                 self.output_info.append(
                     (

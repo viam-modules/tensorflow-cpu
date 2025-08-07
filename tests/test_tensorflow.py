@@ -85,8 +85,8 @@ class TestTensorflowCPU:
         fakeInput = {"input_1": np.ones([1, 10])}
         out = await tf_keras_model.infer(input_tensors=fakeInput)
         assert isinstance(out, Dict)
-        for output in out:
-            assert isinstance(out[output], np.ndarray)
+        for output in out.values():
+            assert isinstance(output, np.ndarray)
 
     @pytest.mark.asyncio
     async def test_metadata_keras(self):

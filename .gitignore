@@ -1,3 +1,4 @@
+# Largely copied from this link with a few additions at the bottom: https://github.com/github/gitignore/blob/main/Python.gitignore
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -202,8 +203,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# START OF ADDITIONS
+
 # Keras executable
 *.keras
 
 .setup
-
