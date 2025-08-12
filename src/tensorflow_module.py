@@ -15,7 +15,7 @@ import numpy as np
 import google.protobuf.struct_pb2 as pb
 import tensorflow as tf
 import keras
-
+import keras_cv
 
 LOGGER = getLogger(__name__)
 
