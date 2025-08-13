@@ -181,18 +181,25 @@ class TensorflowModule(MLModel, Reconfigurable):
             out["output_0"] = np.asarray(res)
             return out
 
-        # Do the infer. res might have >1 tensor in it
-        res = self.model(data)
+        # # Do the infer. res might have >1 tensor in it
+        # res = self.model(data)
 
-        # Check output against expected length
-        if len(self.output_info) < len(res):
-            raise Exception(
-                "there are more output tensors ("
-                + str(len(res))
-                + ") than the model expected ("
-                + str(len(self.output_info))
-                + ")"
-            )
+        # # Check output against expected length
+        # if len(self.output_info) < len(res):
+        #     raise Exception(
+        #         "there are more output tensors ("
+        #         + str(len(res))
+        #         + ") than the model expected ("
+        #         + str(len(self.output_info))
+        #         + ")"
+        # )
+        
+        # res = self.model(data)
+        f = self.model.signatures.get("serving_default")
+        input_tensor = tf.convert_to_tensor(data, dtype=tf.float32)
+        _, kwargs_spec = f.structured_input_signature
+        input_name = next(iter(kwargs_spec.keys()))
+        res = f(**{input_name: input_tensor})
 
         # Prep outputs for return
         out = {}

@@ -28,9 +28,9 @@ fi
 
 source .env
 echo "creating virtualenv at $VIRTUAL_ENV"
-# WARNING: As of August 2025, Tensorflow is not available in Python 3.13. If you get stuck here,
-# consider using python3.12 instead.
-python3 -m venv $VIRTUAL_ENV
+# For cloud build, we need to downgrade to tensorflow 2.14.0 which requires python 3.11 or lower
+# Since Kongsberg training scripts are written for python 3.10, we will use python 3.10
+python3.10 -m venv $VIRTUAL_ENV
 
 echo "installing dependencies from requirements.txt"
 if [ -f $VIRTUAL_ENV/bin/activate ]; then # Linux

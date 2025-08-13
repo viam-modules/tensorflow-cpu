@@ -1,14 +1,13 @@
-viam-sdk==0.50.0
+viam-sdk
 cython
 setuptools
 numpy < 2.0.0
 h5py
-tensorflow==2.18.0
+tensorflow==2.14.0
+keras==2.14.0
 tf-keras-nightly
 pyinstaller
 pylint
 pytest
 pytest-asyncio
 tensorflow_probability == 0.24.0
-
-
