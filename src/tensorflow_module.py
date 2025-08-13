@@ -181,8 +181,26 @@ class TensorflowModule(MLModel, Reconfigurable):
             out["output_0"] = np.asarray(res)
             return out
 
+        # Normalize data if values are greater than 1.0 (typical for uint8 images)
+        if np.any(data > 1.0):
+            data = data / 255.0
+
         # Do the infer. res might have >1 tensor in it
-        res = self.model(data)
+        # First try calling the model directly; if that fails, fall back to serving_default
+        try:
+            # Attempt direct call with raw data
+            res = self.model(data)
+        except Exception as direct_err:
+            try:
+                f = self.model.signatures["serving_default"]
+                input_tensor = tf.convert_to_tensor(data, dtype=tf.float32)
+                _, kwargs_spec = f.structured_input_signature
+                input_name = next(iter(kwargs_spec.keys()))
+                res = f(**{input_name: input_tensor})
+            except Exception as serving_err:
+                raise Exception(
+                    f"both direct model inference and serving_default failed: direct_err={direct_err}; serving_default_err={serving_err}"
+                )
 
         # Check output against expected length
         if len(self.output_info) < len(res):
@@ -197,18 +215,17 @@ class TensorflowModule(MLModel, Reconfigurable):
         # Prep outputs for return
         out = {}
 
-        # This result (res) may be a dict with string keys and tensor values
-        # OR it could be a tuple of tensors.
-        if len(res) == 1:
-            out[self.output_info[0][0]] = np.asarray(res[0])
-
-        elif isinstance(res, dict):
-            for named_tensor in res:
-                out[named_tensor] = np.asarray(res[named_tensor])
-
+        if isinstance(res, dict):
+            if len(res) == 1:
+                out[self.output_info[0][0]] = np.asarray(next(iter(res.values())))
+            else:
+                for k, v in res.items():
+                    out[k] = np.asarray(v)
         elif isinstance(res, tuple):
-            for i in range(len(res)):
-                out["output_" + str(i)] = np.asarray(res[i])
+            for i, v in enumerate(res):
+                out[f"output_{i}"] = np.asarray(v)
+        elif len(res) == 1:
+            out[self.output_info[0][0]] = np.asarray(res[0])
         else:
             return {}
 
