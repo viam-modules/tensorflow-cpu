@@ -190,17 +190,17 @@ class TensorflowModule(MLModel, Reconfigurable):
         try:
             # Attempt direct call with raw data
             res = self.model(data)
-        except Exception as direct_err:
+        except (ValueError, TypeError, RuntimeError) as direct_err:
             try:
                 f = self.model.signatures["serving_default"]
                 input_tensor = tf.convert_to_tensor(data, dtype=tf.float32)
                 _, kwargs_spec = f.structured_input_signature
                 input_name = next(iter(kwargs_spec.keys()))
                 res = f(**{input_name: input_tensor})
-            except Exception as serving_err:
+            except (ValueError, TypeError, RuntimeError) as serving_err:
                 raise Exception(
                     f"both direct model inference and serving_default failed: direct_err={direct_err}; serving_default_err={serving_err}"
-                )
+                ) from serving_err
 
         # Check output against expected length
         if len(self.output_info) < len(res):
