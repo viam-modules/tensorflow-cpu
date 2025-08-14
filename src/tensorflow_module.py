@@ -211,12 +211,10 @@ class TensorflowModule(MLModel, Reconfigurable):
             res = self.model.predict(data, verbose=0)
             return {"output_0": np.asarray(res)}
 
-        LOGGER.info("data: %s", data)
         # Normalize data if values are greater than 1.0 (typical for uint8 images)
         if np.any(data > 1.0):
             LOGGER.info("Normalizing data")
             data = data / 255.0
-        LOGGER.info("data: %s", data)
 
         res = self._run_inference(data)
         return self._process_outputs(res)
