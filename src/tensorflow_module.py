@@ -187,7 +187,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         elif len(res) == 1:
             out[self.output_info[0][0]] = np.asarray(res[0])
         else:
-            return {}
+            raise Exception(f"Unexpected output type and length: {type(res)} and {len(res)}")
         return out
 
     async def infer(
