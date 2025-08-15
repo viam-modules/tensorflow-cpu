@@ -207,5 +207,6 @@ __marimo__/
 
 # Keras executable
 *.keras
-
 .setup
+*.python-version
+*.tar.gz
