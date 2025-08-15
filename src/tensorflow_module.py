@@ -142,6 +142,8 @@ class TensorflowModule(MLModel, Reconfigurable):
                 f"there are more input tensors ({len(input_vars)}) than the model expected ({len(self.input_info)})"
             )
 
+        LOGGER.info(f"self.input_info: {self.input_info}")
+
         input_list = []
         for i, var_name in enumerate(input_vars):
             input_t = input_tensors[var_name]
