@@ -280,6 +280,7 @@ def prepShape(tensorShape):
 
 # Want to return a simple string ("float32", "int64", etc.)
 def prepType(tensorType, is_keras):
+    LOGGER.info(f"tensorType: {tensorType}, is_keras: {is_keras}")
     if tensorType is None or not isinstance(tensorType, str):
         return "unknown"
     if is_keras:
