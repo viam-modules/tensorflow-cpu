@@ -149,6 +149,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             input_t = tf.convert_to_tensor(input_t, dtype=self.input_info[i][2])
             input_list.append(input_t)
 
+
         if len(input_vars) == 1:
             return np.squeeze(np.asarray(input_list), axis=0)
         return np.asarray(input_list)
@@ -279,7 +280,11 @@ def prepShape(tensorShape):
 
 # Want to return a simple string ("float32", "int64", etc.)
 def prepType(tensorType, is_keras):
-    if tensorType is None or not isinstance(tensorType, str):
+    if tensorType is None:
+        return "unknown"
+    if hasattr(tensorType, 'name'):
+        return tensorType.name
+    if not isinstance(tensorType, str):
         return "unknown"
     if is_keras:
         return tensorType
