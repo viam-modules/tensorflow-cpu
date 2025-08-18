@@ -22,8 +22,12 @@ class TestTensorflowCPU:
     badconfig =make_component_config({
         "model_path": "testModel"
     })
-    goodconfig =make_component_config({
+    saved_model_config =make_component_config({
         "model_path": "./tests/EffNet",
+        "label_path": "put/Labels/here.txt"
+    })
+    keras_config = make_component_config({
+        "model_path": "./tests/mock_model.keras",
         "label_path": "put/Labels/here.txt"
     })
 
@@ -31,6 +35,12 @@ class TestTensorflowCPU:
     def getTFCPU(self):
         tfmodel = TensorflowModule("test")
         tfmodel.model = tf.saved_model.load("./tests/EffNet")
+        return tfmodel
+    
+    def getKerasModel(self):
+        tfmodel = TensorflowModule("test")
+        tfmodel.model = tf.keras.models.load_model("./tests/mock_model.keras")
+        tfmodel.is_keras = True
         return tfmodel
         
 
@@ -40,13 +50,14 @@ class TestTensorflowCPU:
             response = tfm.validate_config(config=self.empty_config)
         with pytest.raises(Exception):
             response = tfm.validate_config(config=self.badconfig)
-        response = tfm.validate_config(config=self.goodconfig)
+        response = tfm.validate_config(config=self.saved_model_config)
+        response = tfm.validate_config(config=self.keras_config)
 
 
     @pytest.mark.asyncio
-    async def test_infer(self):
+    async def test_saved_model_infer(self):
         tfmodel = self.getTFCPU()
-        tfmodel.reconfigure(config=self.goodconfig, dependencies=None)
+        tfmodel.reconfigure(config=self.saved_model_config, dependencies=None)
         fakeInput = {"input": np.ones([1,10,10,3])}   # make a fake input thingy
         out = await tfmodel.infer(input_tensors=fakeInput) 
         assert isinstance(out, Dict)
@@ -55,9 +66,31 @@ class TestTensorflowCPU:
  
 
     @pytest.mark.asyncio
-    async def test_metadata(self):
+    async def test_saved_model_metadata(self):
         tfmodel = self.getTFCPU()
-        tfmodel.reconfigure(config=self.goodconfig, dependencies=None)
+        tfmodel.reconfigure(config=self.saved_model_config, dependencies=None)
+        md = await tfmodel.metadata()
+        assert isinstance(md, Metadata)
+        assert hasattr(md, "name")
+        assert hasattr(md, "input_info")
+        assert hasattr(md, "output_info")
+
+    @pytest.mark.asyncio
+    async def test_keras_infer(self):
+        tfmodel = self.getKerasModel()
+        tfmodel.reconfigure(config=self.keras_config, dependencies=None)
+        
+        fakeInput = {"input": np.ones([1, 4]).astype(np.float32)}
+        
+        out = await tfmodel.infer(input_tensors=fakeInput)
+        assert isinstance(out, Dict)
+        for output in out:
+            assert isinstance(out[output], np.ndarray)
+
+    @pytest.mark.asyncio
+    async def test_keras_metadata(self):
+        tfmodel = self.getKerasModel()
+        tfmodel.reconfigure(config=self.keras_config, dependencies=None)
         md = await tfmodel.metadata()
         assert isinstance(md, Metadata)
         assert hasattr(md, "name")
