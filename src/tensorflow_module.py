@@ -142,7 +142,6 @@ class TensorflowModule(MLModel, Reconfigurable):
                 f"there are more input tensors ({len(input_vars)}) than the model expected ({len(self.input_info)})"
             )
 
-        LOGGER.info(f"self.input_info: {self.input_info}")
 
         input_list = []
         for i, var_name in enumerate(input_vars):
@@ -280,7 +279,6 @@ def prepShape(tensorShape):
 
 # Want to return a simple string ("float32", "int64", etc.)
 def prepType(tensorType, is_keras):
-    LOGGER.info(f"tensorType: {tensorType}, is_keras: {is_keras}")
     if tensorType is None or not isinstance(tensorType, str):
         return "unknown"
     if is_keras:
