@@ -130,7 +130,6 @@ class TensorflowModule(MLModel, Reconfigurable):
                     info = (f._arg_keywords[i], prepShape(ff.get_shape()), ff.dtype)
                     self.input_info.append(info)
 
-        LOGGER.info(f"reconfigured input_info: {self.input_info}")
         for out in f.outputs:
             info = (out.name, prepShape(out.get_shape()), out.dtype)
             self.output_info.append(info)
@@ -236,7 +235,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         input_info = []
         output_info = []
         for inputT in self.input_info:
-            LOGGER.info(f"inputT: {inputT}")
             info = TensorInfo(
                 name=inputT[0],
                 shape=prepShape(inputT[1]),
@@ -253,8 +251,6 @@ class TensorflowModule(MLModel, Reconfigurable):
             )
             output_info.append(info)
 
-        LOGGER.info(f"metadata input_info: {input_info}")
-        LOGGER.info(f"metadata output_info: {output_info}")
         return Metadata(
             name="tensorflow_model", input_info=input_info, output_info=output_info
         )
