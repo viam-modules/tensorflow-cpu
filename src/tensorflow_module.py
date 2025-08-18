@@ -134,6 +134,63 @@ class TensorflowModule(MLModel, Reconfigurable):
             info = (out.name, prepShape(out.get_shape()), out.dtype)
             self.output_info.append(info)
 
+    def _prepare_inputs(self, input_tensors: Dict[str, NDArray]) -> NDArray:
+        """Prepare input tensors for inference."""
+        input_vars = list(input_tensors.keys())
+        if len(input_vars) > len(self.input_info):
+            raise Exception(
+                f"there are more input tensors ({len(input_vars)}) than the model expected ({len(self.input_info)})"
+            )
+
+
+        input_list = []
+        for i, var_name in enumerate(input_vars):
+            input_t = input_tensors[var_name]
+            input_t = tf.convert_to_tensor(input_t, dtype=self.input_info[i][2])
+            input_list.append(input_t)
+
+        if len(input_vars) == 1:
+            return np.squeeze(np.asarray(input_list), axis=0)
+        return np.asarray(input_list)
+
+    def _run_inference(self, data: NDArray):
+        """Run inference on the model."""
+        try:
+            return self.model(data)
+        except (ValueError, TypeError) as direct_err:
+            try:
+                f = self.model.signatures["serving_default"]
+                _, kwargs_spec = f.structured_input_signature
+                input_name = next(iter(kwargs_spec.keys()))
+                return f(**{input_name: data})
+            except (ValueError, TypeError) as serving_err:
+                raise Exception(
+                    f"both direct model inference and serving_default failed: direct_err={direct_err}; serving_default_err={serving_err}"
+                ) from serving_err
+
+    def _process_outputs(self, res) -> Dict[str, NDArray]:
+        """Process model outputs into the expected format."""
+        if len(self.output_info) < len(res):
+            raise Exception(
+                f"there are more output tensors ({len(res)}) than the model expected ({len(self.output_info)})"
+            )
+
+        out = {}
+        if isinstance(res, dict):
+            if len(res) == 1:
+                out[self.output_info[0][0]] = np.asarray(next(iter(res.values())))
+            else:
+                for k, v in res.items():
+                    out[k] = np.asarray(v)
+        elif isinstance(res, tuple):
+            for i, v in enumerate(res):
+                out[f"output_{i}"] = np.asarray(v)
+        elif len(res) == 1:
+            out[self.output_info[0][0]] = np.asarray(res[0])
+        else:
+            raise Exception(f"Unexpected output type and length: {type(res)} and {len(res)}")
+        return out
+
     async def infer(
         self,
         input_tensors: Dict[str, NDArray],
@@ -149,70 +206,14 @@ class TensorflowModule(MLModel, Reconfigurable):
         Returns:
             Dict[str, NDArray]: A dictionary of output flat tensors as specified in the metadata
         """
-
-        # Check input against expected length
-        inputVars = list(input_tensors.keys())
-        if len(inputVars) > len(self.input_info):
-            raise Exception(
-                "there are more input tensors ("
-                + str(len(inputVars))
-                + ") than the model expected ("
-                + str(len(self.input_info))
-                + ")"
-            )
-
-        # Prepare input(s) for inference
-        input_list = []
-        for i in range(len(inputVars)):
-            inputT = input_tensors[inputVars[i]]  # grab tensor
-            inputT = tf.convert_to_tensor(
-                inputT, dtype=self.input_info[i][2]
-            )  # make into a tf tensor of right type
-            input_list.append(inputT)  # put in list
-
-        if len(inputVars) == 1:
-            data = np.squeeze(np.asarray(input_list), axis=0)
-        else:
-            data = np.asarray(input_list)
+        data = self._prepare_inputs(input_tensors)
 
         if self.is_keras:
             res = self.model.predict(data, verbose=0)
-            out = {}
-            out["output_0"] = np.asarray(res)
-            return out
+            return {"output_0": np.asarray(res)}
 
-        # Do the infer. res might have >1 tensor in it
-        res = self.model(data)
-
-        # Check output against expected length
-        if len(self.output_info) < len(res):
-            raise Exception(
-                "there are more output tensors ("
-                + str(len(res))
-                + ") than the model expected ("
-                + str(len(self.output_info))
-                + ")"
-            )
-
-        # Prep outputs for return
-        out = {}
-
-        # This result (res) may be a dict with string keys and tensor values
-        # OR it could be a tuple of tensors.
-        if len(res) == 1:
-            out[self.output_info[0][0]] = np.asarray(res[0])
-
-        elif isinstance(res, dict):
-            for named_tensor in res:
-                out[named_tensor] = np.asarray(res[named_tensor])
-
-        elif isinstance(res, tuple):
-            for i in range(len(res)):
-                out["output_" + str(i)] = np.asarray(res[i])
-        else:
-            return {}
-
-        return out
+        res = self._run_inference(data)
+        return self._process_outputs(res)
 
     async def metadata(
         self,
