@@ -11,15 +11,15 @@ fi
 
 
 if command -v apt-get; then
-    $SUDO apt-get -y install python3-venv
-    if dpkg -l python3-venv; then
-        echo "python3-venv is installed, skipping setup"
+    $SUDO apt-get -y install python3.10 python3.10-venv
+    if dpkg -l python3.10-venv; then
+        echo "python3.10-venv is installed, skipping setup"
     else
-        if ! apt info python3-venv; then
-            echo "python3-venv package info not found, trying apt update"
+        if ! apt info python3.10-venv; then
+            echo "python3.10-venv package info not found, trying apt update"
             $SUDO apt-get -qq update
         fi
-        $SUDO apt-get install -qqy python3-venv
+        $SUDO apt-get install -qqy python3.10-venv
     fi
 else
     echo "Skipping tool installation because your platform is missing apt-get."
