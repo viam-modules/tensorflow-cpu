@@ -138,7 +138,10 @@ class TensorflowModule(MLModel, Reconfigurable):
             return
 
         # This is where we do the actual loading of the SavedModel
+        self.model = tf.keras.models.load_model(self.model_path)
+        tf.saved_model.save(self.model, self.model_path)
         self.model = tf.saved_model.load(self.model_path)
+    
         f = self.model.signatures["serving_default"]
 
         # f.inputs may include "empty" inputs as resources, but _arg_keywords only contains input tensor names
