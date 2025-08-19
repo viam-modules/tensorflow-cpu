@@ -11,7 +11,7 @@ fi
 
 
 if command -v apt-get; then
-    $SUDO apt-get -y install python3.10-venv
+    $SUDO apt-get -y install python3.10
     if dpkg -l python3.10-venv; then
         echo "python3.10-venv is installed, skipping setup"
     else
