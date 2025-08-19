@@ -199,8 +199,16 @@ class TensorflowModule(MLModel, Reconfigurable):
             # Do the infer. res might have >1 tensor in it
             try:
                 res = self.model(data)
-            except TypeError:
-                res = self.model.predict(data, verbose=0)
+            except TypeError as direct_err:
+                try:
+                    f = self.model.signatures["serving_default"]
+                    _, kwargs_spec = f.structured_input_signature
+                    input_name = next(iter(kwargs_spec.keys()))
+                    return f(**{input_name: data})
+                except (ValueError, TypeError) as serving_err:
+                    raise Exception(
+                        f"both direct model inference and serving_default failed: direct_err={direct_err}; serving_default_err={serving_err}"
+                    ) from serving_err
 
         # Check output against expected length
         if len(self.output_info) < len(res):
