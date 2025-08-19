@@ -197,7 +197,10 @@ class TensorflowModule(MLModel, Reconfigurable):
             res = self.model.predict(data, verbose=0)
         else:
             # Do the infer. res might have >1 tensor in it
-            res = self.model(data)
+            try:
+                res = self.model(data)
+            except TypeError:
+                res = self.model.predict(data, verbose=0)
 
         # Check output against expected length
         if len(self.output_info) < len(res):
