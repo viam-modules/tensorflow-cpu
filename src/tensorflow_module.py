@@ -225,17 +225,20 @@ class TensorflowModule(MLModel, Reconfigurable):
 
         # This result (res) may be a dict with string keys and tensor values
         # OR it could be a tuple of tensors.
-        if len(res) == 1:
-            out[self.output_info[0][0]] = np.asarray(res[0])
-
-        elif isinstance(res, dict):
-            for named_tensor in res:
-                out[named_tensor] = np.asarray(res[named_tensor])
-
+        out = {}
+        if isinstance(res, dict):
+            if len(res) == 1:
+                out[self.output_info[0][0]] = np.asarray(next(iter(res.values())))
+            else:
+                for k, v in res.items():
+                    out[k] = np.asarray(v)
         elif isinstance(res, tuple):
-            for i in range(len(res)):
-                out["output_" + str(i)] = np.asarray(res[i])
-
+            for i, v in enumerate(res):
+                out[f"output_{i}"] = np.asarray(v)
+        elif len(res) == 1:
+            out[self.output_info[0][0]] = np.asarray(res[0])
+        else:
+            raise Exception(f"Unexpected output type and length: {type(res)} and {len(res)}")
         return out
 
     async def metadata(
