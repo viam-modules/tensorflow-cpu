@@ -1,4 +1,4 @@
-viam-sdk
+viam-sdk==0.29.3
 cython
 setuptools
 numpy < 2.0.0
