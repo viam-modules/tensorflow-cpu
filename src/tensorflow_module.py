@@ -14,6 +14,7 @@ from viam.logging import getLogger
 import numpy as np
 import google.protobuf.struct_pb2 as pb
 import tensorflow as tf
+import keras
 
 
 LOGGER = getLogger(__name__)
@@ -52,7 +53,6 @@ class TensorflowModule(MLModel, Reconfigurable):
             LOGGER.info(
                 "Detected Keras model file at "
                 + model_path
-                + ". Please note Keras support is limited."
             )
             return ([], [])
 
@@ -87,35 +87,54 @@ class TensorflowModule(MLModel, Reconfigurable):
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
-        self.input_info = []  # input and output info are lists of tuples (name, shape, underlying type)
+        self.input_info = [] # input and output info are lists of tuples (name, shape, underlying type)
         self.output_info = []
 
         _, ext = os.path.splitext(self.model_path)
         if ext.lower() == ".keras":
             # If it's a Keras model, load it using the Keras API
-            self.model = tf.keras.models.load_model(self.model_path)
+            self.model = keras.models.load_model(self.model_path)
             self.is_keras = True
 
-            # For now, we use first and last layer to get input and output info
-            in_config = self.model.layers[0].get_config()
-            out_config = self.model.layers[-1].get_config()
-
-            # Keras model's output config's dtype is (sometimes?) a whole dict
-            outType = out_config.get("dtype")
-            if not isinstance(outType, str):
-                outType = None
-
-            self.input_info.append(
-                (
-                    in_config.get("name"),
-                    in_config.get("batch_shape"),
-                    in_config.get("dtype"),
+            # So instead of handling just a single-input and single-output layer (as is when the Model is created using the 
+            # Sequential API), we need to support the Functional API too which may have multi-input and output layers
+            # If input_info and output_info are empty, default to the first and last layer of the model
+            try:
+                inputs = self.model.inputs
+                if inputs:
+                    self.input_info = [(i.name, i.shape, i.dtype) for i in inputs]
+                else:
+                    raise AttributeError("'inputs' attributed not defined on the model, defaulting to the first layer instead")
+            except AttributeError:
+                in_config = self.model.layers[0].get_config()
+                self.input_info.append(
+                    (
+                        in_config.get("name"),
+                        in_config.get("batch_shape"),
+                        in_config.get("dtype"),
+                    )
                 )
-            )
-            self.output_info.append(
-                (out_config.get("name"), out_config.get("batch_shape"), outType)
-            )
 
+            try:
+                outputs = self.model.outputs
+                if outputs:
+                    self.output_info = [(o.name, o.shape, o.dtype) for o in outputs]
+                else:
+                    raise AttributeError("'outputs' attributed not defined on the model, defaulting to the last layer instead")
+            except AttributeError:
+                out_config = self.model.layers[-1].get_config()
+                # Keras model's output config's dtype is (sometimes?) a whole dict
+                outType = out_config.get("dtype")
+                if not isinstance(outType, str):
+                    LOGGER.info("Output dtype is not a string, using 'None' instead")
+                    outType = None
+                self.output_info.append(
+                    (
+                        out_config.get("name"),
+                        out_config.get("batch_shape"),
+                        outType,
+                    )
+                )
             return
 
         # This is where we do the actual loading of the SavedModel
@@ -227,7 +246,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         Returns:
             Metadata: The metadata
         """
-
         extra = pb.Struct()
         extra["labels"] = self.label_path
 
