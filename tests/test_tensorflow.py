@@ -110,9 +110,9 @@ class TestTensorflowCPU:
     
     @pytest.mark.asyncio
     async def test_infer_keras(self):
-        tf_keras_model = TensorflowModule("test")
-        tf_keras_model.reconfigure(config=self.config_keras, dependencies=None)
-        fakeInput = {"input_1": np.ones([1, 10])}
+        tf_keras_model = self.getTFCPUKeras()
+        tf_keras_model.reconfigure(config=self.keras_config, dependencies=None)
+        fakeInput = {"input_1": np.ones([1, 4])}
         out = await tf_keras_model.infer(input_tensors=fakeInput)
         assert isinstance(out, Dict)
         for output in out.values():
@@ -121,7 +121,7 @@ class TestTensorflowCPU:
     @pytest.mark.asyncio
     async def test_metadata_keras(self):
         tf_keras_model = self.getTFCPUKeras()
-        tf_keras_model.reconfigure(config=self.config_keras, dependencies=None)
+        tf_keras_model.reconfigure(config=self.keras_config, dependencies=None)
         md = await tf_keras_model.metadata()
         assert isinstance(md, Metadata)
         assert hasattr(md, "name")
