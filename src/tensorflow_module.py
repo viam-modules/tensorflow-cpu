@@ -104,7 +104,7 @@ class TensorflowModule(MLModel, Reconfigurable):
                 if inputs:
                     self.input_info = [(i.name, i.shape, i.dtype) for i in inputs]
                 else:
-                    raise AttributeError("No inputs")
+                    raise AttributeError("'inputs' attributed not defined on the model, defaulting to the first layer instead")
             except AttributeError:
                 in_config = self.model.layers[0].get_config()
                 self.input_info.append(
@@ -120,7 +120,7 @@ class TensorflowModule(MLModel, Reconfigurable):
                 if outputs:
                     self.output_info = [(o.name, o.shape, o.dtype) for o in outputs]
                 else:
-                    raise AttributeError("No outputs")
+                    raise AttributeError("'outputs' attributed not defined on the model, defaulting to the last layer instead")
             except AttributeError:
                 out_config = self.model.layers[-1].get_config()
                 # Keras model's output config's dtype is (sometimes?) a whole dict
