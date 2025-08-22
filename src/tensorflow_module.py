@@ -14,6 +14,7 @@ from viam.logging import getLogger
 import numpy as np
 import google.protobuf.struct_pb2 as pb
 import tensorflow as tf
+import keras
 
 
 LOGGER = getLogger(__name__)
@@ -37,6 +38,7 @@ class TensorflowModule(MLModel, Reconfigurable):
     def validate_config(
         cls, config: ServiceConfig
     ) -> Tuple[Sequence[str], Sequence[str]]:
+        LOGGER.info("Validating config")
         model_path_err = (
             "model_path must be the location of the Tensorflow SavedModel directory "
             "or the location of a Keras model file (.keras)"
@@ -78,11 +80,13 @@ class TensorflowModule(MLModel, Reconfigurable):
         if not isValidSavedModel:
             raise Exception(model_path_err)
 
+        LOGGER.info("Config validated")
         return ([], [])
 
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ):
+        LOGGER.info("Reconfiguring")
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
@@ -92,24 +96,16 @@ class TensorflowModule(MLModel, Reconfigurable):
         _, ext = os.path.splitext(self.model_path)
         if ext.lower() == ".keras":
             # If it's a Keras model, load it using the Keras API
-            self.model = tf.keras.models.load_model(self.model_path)
+            self.model = keras.models.load_model(self.model_path)
             self.is_keras = True
 
             # So instead of handling just a single-input and single-output layer (as is when the Model is created using the 
             # Sequential API), we need to support the Functional API too which may have multi-input and output layers
-            self.input_info  = [(i.name, i.shape, i.dtype) for i in self.model.inputs]
-            self.output_info = [(o.name, o.shape, o.dtype) for o in self.model.outputs]
-
             # If input_info and output_info are empty, default to the first and last layer of the model
-            if len(self.input_info) == 0 and len(self.output_info) == 0:
+            if self.model.inputs:
+                self.input_info  = [(i.name, i.shape, i.dtype) for i in self.model.inputs]
+            else:
                 in_config = self.model.layers[0].get_config()
-                out_config = self.model.layers[-1].get_config()
-
-                # Keras model's output config's dtype is (sometimes?) a whole dict
-                outType = out_config.get("dtype")
-                if not isinstance(outType, str):
-                    outType = None
-
                 self.input_info.append(
                     (
                         in_config.get("name"),
@@ -117,6 +113,16 @@ class TensorflowModule(MLModel, Reconfigurable):
                         in_config.get("dtype"),
                     )
                 )
+
+            if self.model.outputs:
+                self.output_info = [(o.name, o.shape, o.dtype) for o in self.model.outputs]
+            else:
+                out_config = self.model.layers[-1].get_config()
+                # Keras model's output config's dtype is (sometimes?) a whole dict
+                outType = out_config.get("dtype")
+                if not isinstance(outType, str):
+                    outType = None
+
                 self.output_info.append(
                     (
                         out_config.get("name"),
@@ -124,7 +130,7 @@ class TensorflowModule(MLModel, Reconfigurable):
                         outType,
                     )
                 )
-
+            LOGGER.info("Reconfigured")
             return
 
         # This is where we do the actual loading of the SavedModel
@@ -236,7 +242,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         Returns:
             Metadata: The metadata
         """
-
+        LOGGER.info("Getting metadata")
         extra = pb.Struct()
         extra["labels"] = self.label_path
 
@@ -260,6 +266,7 @@ class TensorflowModule(MLModel, Reconfigurable):
             )
             output_info.append(info)
 
+        LOGGER.info("Metadata complete")
         return Metadata(
             name="tensorflow_model", input_info=input_info, output_info=output_info
         )
