@@ -95,15 +95,48 @@ class TensorflowModule(MLModel, Reconfigurable):
             self.model = tf.keras.models.load_model(self.model_path)
             self.is_keras = True
 
-            for input in self.model.inputs:
-                input_config = input.get_config()
+            # So instead of handling just a single-input and single-output layer (as is when the Model is created using the 
+            # Sequential API), we need to support the Functional API too which may have multi-input and output layers
+            for inputs in self.model.inputs:
                 self.input_info.append(
-                    (input_config.get("name"), input_config.get("batch_shape"), input_config.get("dtype"))
+                    (
+                        inputs.name,
+                        inputs.shape,
+                        inputs.dtype
+                    )
                 )
-            for output in self.model.outputs:
-                output_config = output.get_config()
+            for outputs in self.model.outputs:
                 self.output_info.append(
-                    (output_config.get("name"), output_config.get("batch_shape"), output_config.get("dtype"))
+                    (
+                        outputs.name,
+                        outputs.shape,
+                        outputs.dtype
+                    )
+                )
+
+            # If input_info and output_info are empty, default to the first and last layer of the model
+            if len(self.input_info) == 0 and len(self.output_info) == 0:
+                in_config = self.model.layers[0].get_config()
+                out_config = self.model.layers[-1].get_config()
+
+                # Keras model's output config's dtype is (sometimes?) a whole dict
+                outType = out_config.get("dtype")
+                if not isinstance(outType, str):
+                    outType = None
+
+                self.input_info.append(
+                    (
+                        in_config.get("name"),
+                        in_config.get("batch_shape"),
+                        in_config.get("dtype"),
+                    )
+                )
+                self.output_info.append(
+                    (
+                        out_config.get("name"),
+                        out_config.get("batch_shape"),
+                        outType,
+                    )
                 )
 
             return
