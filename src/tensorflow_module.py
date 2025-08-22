@@ -38,7 +38,6 @@ class TensorflowModule(MLModel, Reconfigurable):
     def validate_config(
         cls, config: ServiceConfig
     ) -> Tuple[Sequence[str], Sequence[str]]:
-        LOGGER.info("Validating config")
         model_path_err = (
             "model_path must be the location of the Tensorflow SavedModel directory "
             "or the location of a Keras model file (.keras)"
@@ -80,13 +79,11 @@ class TensorflowModule(MLModel, Reconfigurable):
         if not isValidSavedModel:
             raise Exception(model_path_err)
 
-        LOGGER.info("Config validated")
         return ([], [])
 
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ):
-        LOGGER.info("Reconfiguring")
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
@@ -102,9 +99,13 @@ class TensorflowModule(MLModel, Reconfigurable):
             # So instead of handling just a single-input and single-output layer (as is when the Model is created using the 
             # Sequential API), we need to support the Functional API too which may have multi-input and output layers
             # If input_info and output_info are empty, default to the first and last layer of the model
-            if self.model.inputs:
-                self.input_info  = [(i.name, i.shape, i.dtype) for i in self.model.inputs]
-            else:
+            try:
+                inputs = self.model.inputs
+                if inputs:
+                    self.input_info = [(i.name, i.shape, i.dtype) for i in inputs]
+                else:
+                    raise AttributeError("No inputs")
+            except (AttributeError, ValueError):
                 in_config = self.model.layers[0].get_config()
                 self.input_info.append(
                     (
@@ -114,15 +115,18 @@ class TensorflowModule(MLModel, Reconfigurable):
                     )
                 )
 
-            if self.model.outputs:
-                self.output_info = [(o.name, o.shape, o.dtype) for o in self.model.outputs]
-            else:
+            try:
+                outputs = self.model.outputs
+                if outputs:
+                    self.output_info = [(o.name, o.shape, o.dtype) for o in outputs]
+                else:
+                    raise AttributeError("No outputs")
+            except (AttributeError, ValueError):
                 out_config = self.model.layers[-1].get_config()
                 # Keras model's output config's dtype is (sometimes?) a whole dict
                 outType = out_config.get("dtype")
                 if not isinstance(outType, str):
                     outType = None
-
                 self.output_info.append(
                     (
                         out_config.get("name"),
@@ -130,7 +134,6 @@ class TensorflowModule(MLModel, Reconfigurable):
                         outType,
                     )
                 )
-            LOGGER.info("Reconfigured")
             return
 
         # This is where we do the actual loading of the SavedModel
@@ -242,7 +245,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         Returns:
             Metadata: The metadata
         """
-        LOGGER.info("Getting metadata")
         extra = pb.Struct()
         extra["labels"] = self.label_path
 
@@ -266,7 +268,6 @@ class TensorflowModule(MLModel, Reconfigurable):
             )
             output_info.append(info)
 
-        LOGGER.info("Metadata complete")
         return Metadata(
             name="tensorflow_model", input_info=input_info, output_info=output_info
         )
