@@ -260,6 +260,11 @@ class TensorflowModule(MLModel, Reconfigurable):
     ):
         return NotImplementedError
 
+    async def get_status(
+        self, *, timeout: Optional[float] = None, **kwargs
+    ) -> Mapping[str, ValueTypes]:
+        return {}
+
 
 # Want to return a list of ints (-1 for None)
 def prepShape(tensorShape):
