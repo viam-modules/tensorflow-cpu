@@ -1,6 +1,4 @@
-import json
 import os
-import zipfile
 from typing import ClassVar, Mapping, Sequence, Dict, Optional, Tuple
 from numpy.typing import NDArray
 from typing_extensions import Self
@@ -110,7 +108,6 @@ class TensorflowModule(MLModel, Reconfigurable):
     def reconfigure(
         self, config: ServiceConfig, dependencies: Mapping[ResourceName, ResourceBase]
     ):
-        self._close_signature_def_model()
         self.model_path = config.attributes.fields["model_path"].string_value
         self.label_path = config.attributes.fields["label_path"].string_value
         self.is_keras = False
@@ -120,16 +117,7 @@ class TensorflowModule(MLModel, Reconfigurable):
         _, ext = os.path.splitext(self.model_path)
         if ext.lower() == ".keras":
             # If it's a Keras model, load it using the Keras API
-            try:
-                self.model = tf.keras.models.load_model(self.model_path)
-            except Exception as err:
-                version = get_keras_file_version(self.model_path)
-                if version is not None and version.startswith("2."):
-                    raise Exception(
-                        f"{self.model_path} was saved with Keras {version}, which Keras 3 cannot load. "
-                        "Re-save it with Keras 3, or export it as a TensorFlow SavedModel directory."
-                    ) from err
-                raise
+            self.model = tf.keras.models.load_model(self.model_path)
             self.is_keras = True
 
             # For now, we use first and last layer to get input and output info
@@ -183,10 +171,6 @@ class TensorflowModule(MLModel, Reconfigurable):
         for out in f.outputs:
             info = (out.name, prepShape(out.get_shape()), out.dtype)
             self.output_info.append(info)
-
-    def _close_signature_def_model(self):
-        if isinstance(self.model, SignatureDefModel):
-            self.model.close()
 
     def _prepare_inputs(self, input_tensors: Dict[str, NDArray]) -> NDArray:
         """Prepare input tensors for inference."""
@@ -326,7 +310,8 @@ class TensorflowModule(MLModel, Reconfigurable):
         return {}
 
     async def close(self):
-        self._close_signature_def_model()
+        if isinstance(self.model, SignatureDefModel):
+            self.model.close()
 
 
 # Want to return a list of ints (-1 for None)
@@ -367,14 +352,3 @@ def prepType(tensorType, is_keras):
 def get_model_path_error(model_path: str) -> str:
     """Generate informative error message for model_path validation failures."""
     return f"Invalid model_path '{model_path}'. model_path must be the location of the Tensorflow SavedModel directory or the location of a Keras model file (.keras)"
-
-
-def get_keras_file_version(model_path: str) -> Optional[str]:
-    """Return the Keras version recorded in a .keras archive, or None if it can't be read."""
-    try:
-        with zipfile.ZipFile(model_path) as archive:
-            metadata = json.loads(archive.read("metadata.json"))
-    except (OSError, KeyError, ValueError, zipfile.BadZipFile):
-        return None
-    version = metadata.get("keras_version") if isinstance(metadata, dict) else None
-    return version if isinstance(version, str) else None

@@ -184,10 +184,3 @@ class TestKeras3Compatibility:
         out = await tfmodel.infer(input_tensors={"x": x})
         assert list(out.keys()) == [md.output_info[0].name]
         np.testing.assert_allclose(out[md.output_info[0].name], model.predict(x, verbose=0), rtol=1e-5)
-
-    def test_keras2_file_error(self):
-        tfmodel = TensorflowModule("test")
-        with pytest.raises(Exception, match="saved with Keras 2.13.1"):
-            tfmodel.reconfigure(
-                config=make_component_config({"model_path": "./tests/keras2_model.keras"}), dependencies=None
-            )
