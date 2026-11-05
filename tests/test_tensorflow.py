@@ -142,7 +142,8 @@ class TestKeras3Compatibility:
 
         assert isinstance(tfmodel.model, SignatureDefModel)
         await tfmodel.close()
-        assert tfmodel.model.session._closed
+        with pytest.raises(RuntimeError, match="closed Session"):
+            await tfmodel.infer(input_tensors={"x": np.ones([1, 3], dtype=np.float32)})
 
     @pytest.mark.asyncio
     async def test_keras2_legacy_optimizer_saved_model(self):
@@ -156,6 +157,7 @@ class TestKeras3Compatibility:
 
         out = await tfmodel.infer(input_tensors={"image": np.ones([1, 8, 8, 3], dtype=np.uint8)})
         np.testing.assert_allclose(out["dense"], [[0.33564496, 0.3318222, 0.33253285]], rtol=1e-5)
+        await tfmodel.close()
 
     def test_unrelated_attribute_error_is_not_swallowed(self, monkeypatch):
         def fail(_):

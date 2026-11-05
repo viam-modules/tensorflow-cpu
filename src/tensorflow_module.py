@@ -373,6 +373,8 @@ def get_keras_file_version(model_path: str) -> Optional[str]:
     """Return the Keras version recorded in a .keras archive, or None if it can't be read."""
     try:
         with zipfile.ZipFile(model_path) as archive:
-            return json.loads(archive.read("metadata.json")).get("keras_version")
+            metadata = json.loads(archive.read("metadata.json"))
     except (OSError, KeyError, ValueError, zipfile.BadZipFile):
         return None
+    version = metadata.get("keras_version") if isinstance(metadata, dict) else None
+    return version if isinstance(version, str) else None
