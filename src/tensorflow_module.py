@@ -145,14 +145,15 @@ class TensorflowModule(MLModel, Reconfigurable):
         # This is where we do the actual loading of the SavedModel
         try:
             self.model = tf.saved_model.load(self.model_path)
-        except AttributeError as err:
-            # Keras 2 legacy-optimizer slots need tf-keras to rebuild under Keras 3; the TF1 loader skips Python objects.
-            if "add_slot" not in str(err):
-                raise
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            # Keras 3 can't rebuild some Keras 2 objects (e.g. legacy-optimizer slots) without tf-keras; the TF1 loader runs the signature without them.
+            try:
+                self.model = SignatureDefModel(self.model_path)
+            except Exception:
+                raise err from None
             LOGGER.info(
-                "Loading " + self.model_path + " with the TF1 SavedModel loader because it has Keras 2 optimizer state"
+                "Loaded " + self.model_path + " with the TF1 SavedModel loader after tf.saved_model.load failed: " + str(err)
             )
-            self.model = SignatureDefModel(self.model_path)
             for name, info in self.model.inputs:
                 self.input_info.append((name, tensorInfoShape(info), tf.as_dtype(info.dtype)))
             for name, info in self.model.outputs:

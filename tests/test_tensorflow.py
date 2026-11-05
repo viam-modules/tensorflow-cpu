@@ -159,14 +159,27 @@ class TestKeras3Compatibility:
         np.testing.assert_allclose(out["dense"], [[0.33564496, 0.3318222, 0.33253285]], rtol=1e-5)
         await tfmodel.close()
 
-    def test_unrelated_attribute_error_is_not_swallowed(self, monkeypatch):
+    def test_load_failure_falls_back_to_tf1_loader(self, monkeypatch):
         def fail(_):
-            raise AttributeError("something else")
+            raise RuntimeError("tf2 load failed")
 
         monkeypatch.setattr(tf.saved_model, "load", fail)
         tfmodel = TensorflowModule("test")
-        with pytest.raises(AttributeError, match="something else"):
-            tfmodel.reconfigure(config=make_component_config({"model_path": "./tests/EffNet"}), dependencies=None)
+        tfmodel.reconfigure(config=make_component_config({"model_path": "./tests/EffNet"}), dependencies=None)
+        assert isinstance(tfmodel.model, SignatureDefModel)
+        assert [info[0] for info in tfmodel.input_info] == ["input_1"]
+        tfmodel.model.close()
+
+    def test_original_error_raised_when_both_loaders_fail(self, monkeypatch, tmp_path):
+        (tmp_path / "saved_model.pb").write_bytes(b"not a protobuf")
+
+        def fail(_):
+            raise RuntimeError("tf2 load failed")
+
+        monkeypatch.setattr(tf.saved_model, "load", fail)
+        tfmodel = TensorflowModule("test")
+        with pytest.raises(RuntimeError, match="tf2 load failed") as excinfo:
+            tfmodel.reconfigure(config=make_component_config({"model_path": str(tmp_path)}), dependencies=None)
         assert tfmodel.model is None
 
     @pytest.mark.asyncio
