@@ -47,6 +47,21 @@ Navigate to the **Config** tab of your robot’s page in [the Viam app](https://
 > [!NOTE]  
 > For more information, see [Configure a Robot](https://docs.viam.com/manage/configuration/).
 
+> [!IMPORTANT]
+> On Windows, add `"tcp_mode": true` to the module entry in `modules`. Python modules can't serve on the Unix socket
+> viam-server uses by default on Windows, so without it the module exits at startup with a `NotImplementedError`
+> ("module exited too quickly"). Alternatively, run viam-server with `VIAM_TCP_SOCKETS=true`.
+>
+> ```json
+> {
+>   "type": "registry",
+>   "name": "viam_tensorflow-cpu",
+>   "module_id": "viam:tensorflow-cpu",
+>   "version": "latest",
+>   "tcp_mode": true
+> }
+> ```
+
 ### Attributes
 
 The following attributes are available for `viam:mlmodel:tensorflow-cpu` services:
