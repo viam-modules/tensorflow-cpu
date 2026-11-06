@@ -19,11 +19,39 @@ import tensorflow as tf
 LOGGER = getLogger(__name__)
 
 
+class SignatureDefModel:
+    """Runs a SavedModel's serving_default SignatureDef in a TF1 session. Tensors are named by signature key."""
+
+    def __init__(self, model_path: str):
+        self.session = tf.compat.v1.Session(graph=tf.Graph())
+        try:
+            meta_graph = tf.compat.v1.saved_model.loader.load(
+                self.session, [tf.saved_model.SERVING], model_path
+            )
+            signature = meta_graph.signature_def["serving_default"]
+        except Exception:
+            self.session.close()
+            raise
+        self.inputs = sorted(signature.inputs.items())
+        self.outputs = sorted(signature.outputs.items())
+
+    def __call__(self, data: NDArray) -> Dict[str, NDArray]:
+        feeds = [data] if len(self.inputs) == 1 else data
+        return self.session.run(
+            {name: info.name for name, info in self.outputs},
+            feed_dict={info.name: d for (_, info), d in zip(self.inputs, feeds)},
+        )
+
+    def close(self):
+        self.session.close()
+
+
 class TensorflowModule(MLModel, Reconfigurable):
     MODEL: ClassVar[Model] = Model(ModelFamily("viam", "mlmodel"), "tensorflow-cpu")
 
     def __init__(self, name: str):
         super().__init__(name=name)
+        self.model = None
 
     @classmethod
     def new_service(
@@ -115,7 +143,22 @@ class TensorflowModule(MLModel, Reconfigurable):
             return
 
         # This is where we do the actual loading of the SavedModel
-        self.model = tf.saved_model.load(self.model_path)
+        try:
+            self.model = tf.saved_model.load(self.model_path)
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            # Keras 3 can't rebuild some Keras 2 objects (e.g. legacy-optimizer slots) without tf-keras; the TF1 loader runs the signature without them.
+            try:
+                self.model = SignatureDefModel(self.model_path)
+            except Exception:
+                raise err from None
+            LOGGER.info(
+                "Loaded " + self.model_path + " with the TF1 SavedModel loader after tf.saved_model.load failed: " + str(err)
+            )
+            for name, info in self.model.inputs:
+                self.input_info.append((name, tensorInfoShape(info), tf.as_dtype(info.dtype)))
+            for name, info in self.model.outputs:
+                self.output_info.append((name, tensorInfoShape(info), tf.as_dtype(info.dtype)))
+            return
         f = self.model.signatures["serving_default"]
 
         # f.inputs may include "empty" inputs as resources, but _arg_keywords only contains input tensor names
@@ -152,6 +195,8 @@ class TensorflowModule(MLModel, Reconfigurable):
 
     def _run_inference(self, data: NDArray):
         """Run inference on the model."""
+        if isinstance(self.model, SignatureDefModel):
+            return self.model(data)
         try:
             return self.model(data)
         except (ValueError, TypeError) as direct_err:
@@ -265,6 +310,10 @@ class TensorflowModule(MLModel, Reconfigurable):
     ) -> Mapping[str, ValueTypes]:
         return {}
 
+    async def close(self):
+        if isinstance(self.model, SignatureDefModel):
+            self.model.close()
+
 
 # Want to return a list of ints (-1 for None)
 def prepShape(tensorShape):
@@ -277,6 +326,11 @@ def prepShape(tensorShape):
         else:
             out.append(t)
     return out
+
+
+def tensorInfoShape(info):
+    shape = tf.TensorShape(info.tensor_shape)
+    return None if shape.rank is None else shape
 
 
 # Want to return a simple string ("float32", "int64", etc.)
